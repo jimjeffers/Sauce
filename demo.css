@@ -1,0 +1,17 @@
+#test {
+  background: #000;
+  display: block;
+  color: #fff;
+  font: 1.5em "Lucida Grande", "Trebuchet MS", Verdana, sans-serif;
+  line-height: 1em;
+  left: 50%;
+  margin: 0 0 0 -250px;
+  padding: 20px;
+  position: absolute;
+  top: 50%;
+  text-align: center;
+  height: 20px;
+  text-decoration: none;
+  width: 500px;
+  opacity:1; 
+}

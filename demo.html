@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="demo.css" type="text/css" media="screen" title="no title" charset="utf-8">
+    <script type="text/javascript" charset="utf-8" src="easie.js"></script>
+    <script type="text/javascript" charset="utf-8" src="sauce.js"></script>
+  </head>
+  <body id="">
+    <div id="test">Quint</div>
+    <script type="text/javascript" charset="utf-8">
+      var hotSauce = new Sauce();
+      hotSauce.addFlavor("chili",{
+        equation: Easie.elasticOut,
+        from: -400,
+        to: 0,
+        period: 15
+      }).addFlavor("pepper",{
+        equation: Easie.circOut,
+        from: 0.5,
+        to: 1,
+        endFrame: 75
+      });
+      hotSauce.spoon = function(flavors,browser) {
+        var css;
+        css = "-"+browser+"-transform: translate3d(0px,"+flavors.chili.value+"px,0) ";
+        css += "scale3d("+flavors.pepper.value+","+flavors.pepper.value+",0);";
+        return css;
+      }
+      hotSauce.applyTo("test",2).onComplete(function(element,flavors,browser) {
+        var css;
+        css = "translate3d(0px,"+flavors.chili.value+"px,0) ";
+        css += "scale3d("+flavors.pepper.value+","+flavors.pepper.value+",0)";
+        element.style.webkitTransform = css;
+      });
+    </script>
+  </body>
+</html>
