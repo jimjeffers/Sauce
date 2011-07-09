@@ -1,4 +1,11 @@
 (function() {
+  /*
+  Sauce.coffee (https://github.com/jimjeffers/Sauce)
+  Project created by J. Jeffers
+  
+  DISCLAIMER: Software provided as is with no warranty of any type. 
+  Don't do bad things with this :)
+  */
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
   this.Flavor = (function() {
     function Flavor(params) {
