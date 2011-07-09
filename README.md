@@ -11,10 +11,8 @@ Sauce relies on the easing equations I ported from Robert Penner in another proj
 
 Sauce works with two objects:
 
-1. The Sauce
+1. Sauces
 2. Flavors
-
-and has two important
 
 ### The Sauce
 
