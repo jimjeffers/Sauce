@@ -92,6 +92,17 @@ and in firefox:
 28% { ... } /* etc. */
 ```
 
+You can even perform calculations based on the velocity of a given tween. Check this out:
+
+```coffeescript
+hotSauce.flavors.chili.equation = Easie.backInOut
+hotSauce.spoon = (flavors,ingredient ->
+   ingredient.y = flavors.chili.value
+   ingredient.scale = 1+flavors.chili.velocity/100
+```
+
+With this ease in and out equation we'll see the object scale to a larger size in a fluid fashion as it speeds up and returns back to its original size as it slows down and eventually comes to a stop.
+
 ### Applying the Sauce
 
 This part is simple but likely to change. At the moment there's a simple method that was also creatively named 'applyTo':
