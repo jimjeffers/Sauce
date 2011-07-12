@@ -6,7 +6,7 @@
     <script type="text/javascript" charset="utf-8" src="sauce.js"></script>
   </head>
   <body id="">
-    <div id="test">Quint</div>
+    <div id="test">Bouncy Demo</div>
     <script type="text/javascript" charset="utf-8">
       var hotSauce = new Sauce();
       hotSauce.addFlavor("chili",{
@@ -20,16 +20,14 @@
         to: 1,
         endFrame: 75
       });
-      hotSauce.spoon = function(flavors,browser) {
-        var css;
-        css = "-"+browser+"-transform: translate3d(0px,"+flavors.chili.value+"px,0) ";
-        css += "scale3d("+flavors.pepper.value+","+flavors.pepper.value+",0);";
-        return css;
+      hotSauce.spoon = function(flavors,ingredient) {
+        ingredient.y = flavors.chili.value;
+        ingredient.scale = flavors.pepper.value;
       }
       hotSauce.applyTo("test",2).onComplete(function(element,flavors,browser) {
         var css;
-        css = "translate3d(0px,"+flavors.chili.value+"px,0) ";
-        css += "scale3d("+flavors.pepper.value+","+flavors.pepper.value+",0)";
+        css = "translate(0px,"+flavors.chili.value+"px) ";
+        css += "scale("+flavors.pepper.value+","+flavors.pepper.value+")";
         element.style.webkitTransform = css;
       });
     </script>
