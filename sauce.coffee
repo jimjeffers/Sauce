@@ -83,7 +83,9 @@ class @Ingredient
         
         css += "-#{Sauce.BROWSER_PREFIX}-transform: #{transform};"
       
-      # Assemble any explicit CSS
+      # Assemble any explicit CSS... coming soon. For now just return.
+      # TODO: Implement a method for setting and building any other 
+      # CSS properties on the object.
       css
       
 class @Flavor
@@ -98,7 +100,7 @@ class @Flavor
     @velocity   = 0
     @lastResult = 0
     @value      = 0
-    @spoon      = (flavors,browser) -> 0
+    
   compute: (keyframe) ->
     if keyframe < @startFrame
       keyframe = @startFrame
@@ -121,15 +123,17 @@ class @Sauce
     @complete         = (element,flavors,browser) -> false
     @ingredient       = new Ingredient()
     Sauce.getBrowserCapabilities() unless Sauce.BROWSER_PREFIX?
+    
   addFlavor: (name,params) ->
     @flavors[name] = new Flavor(params)
-    return this
+    this
+    
   create: (keyframes=60) ->
     interval = 100/keyframes
     currentFrame = 0
     cssFrames = ""
     while currentFrame <= keyframes
-      keyframe = Math.floor(currentFrame * interval)
+      keyframe = currentFrame * interval
       frameLabel = "#{keyframe}%"
       if currentFrame < 1
         frameLabel = "from"
@@ -138,15 +142,16 @@ class @Sauce
       for name, flavor of @flavors
         flavor.compute(keyframe)
       @spoon(@flavors,@ingredient)
-      console.log "#{@ingredient.y}"
       cssFrames += " #{frameLabel} {#{@ingredient.css()}}"
       currentFrame++
     animation = "@-#{Sauce.BROWSER_PREFIX}-keyframes #{@name} {#{cssFrames}}"
     @index = @stylesheet.cssRules.length
-    console.log animation
+    console.log animation # Just for debugging THIS.. IS... BETA!!!
     @stylesheet.insertRule(animation, @index)
+    
   onComplete: (complete) ->
     @complete = complete
+    
   applyTo: (id,@duration=2) ->
     @create(@keyframes)
     @element = document.getElementById(id)

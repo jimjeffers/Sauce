@@ -85,9 +85,6 @@
       this.velocity = 0;
       this.lastResult = 0;
       this.value = 0;
-      this.spoon = function(flavors, browser) {
-        return 0;
-      };
     }
     Flavor.prototype.compute = function(keyframe) {
       if (keyframe < this.startFrame) {
@@ -135,7 +132,7 @@
       currentFrame = 0;
       cssFrames = "";
       while (currentFrame <= keyframes) {
-        keyframe = Math.floor(currentFrame * interval);
+        keyframe = currentFrame * interval;
         frameLabel = "" + keyframe + "%";
         if (currentFrame < 1) {
           frameLabel = "from";
@@ -148,7 +145,6 @@
           flavor.compute(keyframe);
         }
         this.spoon(this.flavors, this.ingredient);
-        console.log("" + this.ingredient.y);
         cssFrames += " " + frameLabel + " {" + (this.ingredient.css()) + "}";
         currentFrame++;
       }
