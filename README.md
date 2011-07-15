@@ -110,25 +110,14 @@ This part is simple but likely to change. At the moment there's a simple method 
 ```coffeescript
 hotSauce.applyTo("test",2) # Apply transition to element with ID 'test' for a duration of 2 seconds.
 ```
-### Cleaning Up (Soon to be degraded w/ Ingredients)
+### Event Listening
 
-But wait.. once the transition is complete the object will return back to its pre-animation state. How can we get it to stick? At the moment it's not so nice.. the sauce is a little sloppy here. We have an 'onComplete' handler that allows you to do whatever you'd want to the element once the animation finishes.
-
-```coffeescript
-hotSauce.onComplete((element,flavors,browser) ->
-  css = "-#{browser}-transform: translate3d(0px,#{flavors.chili.value}px,0) "
-  css += "scale3d(#{flavors.pepper.value},#{flavors.pepper.value},0)"
-  element.style.webkitTransform = css;
-)
-```
-
-Again.. these methods are chainable so you could do it like this as well:
+At the moment you can bind an event listener to handle the completion of a transition. You must accept the ingredient
+as a parameter which will let you manipulate the CSS that will be bound to the element.
 
 ```coffeescript
-hotSauce.applyTo("test",2).onComplete((element,flavors,browser) ->
-  css = "-#{browser}-transform: translate3d(0px,#{flavors.chili.value}px,0) "
-  css += "scale3d(#{flavors.pepper.value},#{flavors.pepper.value},0)"
-  element.style.webkitTransform = css;
+hotSauce.onComplete((ingredient) ->
+  alert "Completed!"
 )
 ```
 
