@@ -163,7 +163,5 @@ So all you need to do is set the 'x' property on an object. The ingredient will 
 
 # TODOs
 
-* -Better documentation-
-* -Better support for more than just webkit-
 * On complete handler should be automated and made cross-browser.
 * Maybe something to degrade to older browsers... not sure yet (just don't use sauce in old browsers!)
