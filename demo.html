@@ -25,10 +25,7 @@
         ingredient.scale = flavors.pepper.value;
       }
       hotSauce.applyTo("test",2).onComplete(function(element,flavors,browser) {
-        var css;
-        css = "translate(0px,"+flavors.chili.value+"px) ";
-        css += "scale("+flavors.pepper.value+","+flavors.pepper.value+")";
-        element.style.webkitTransform = css;
+        console.log("Completed!")
       });
     </script>
   </body>

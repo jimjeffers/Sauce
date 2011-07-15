@@ -39,54 +39,56 @@ class @Ingredient
     # We'll use string concatenation since it's more performant
     # then Array.join()
     css = ""
+    
+    # If no transforms were available we only support
+    # animating the top and left properties of the object.
+    # But to be honest.. it's doubtful CSS Animation will
+    # even be available on any browsers that don't support
+    # transformations.
+    if !Sauce.TRANSFORMS?
+      css += "left:#{@x};" if @x?
+      css += "top:#{@y};" if @y?
+    else
+      css += "-#{Sauce.BROWSER_PREFIX}-transform: #{transform};" if (transform = @transformRule())?
+      
+    # Assemble any explicit CSS... coming soon. For now just return.
+    # TODO: Implement a method for setting and building any other 
+    # CSS properties on the object.
+    css
+    
+  transformRule: ->
     # Let's do the hard stuff. If the user didn't use any settings
     # requiring a transform we bypass this.
     if @x? or @y? or @z? or @scale? or @rotate?
-      # If no transforms were available we only support
-      # animating the top and left properties of the object.
-      # But to be honest.. it's doubtful CSS Animation will
-      # even be available on any browsers that don't support
-      # transformations.
-      if !Sauce.TRANSFORMS?
-        css += "left:#{@x};" if @x?
-        css += "top:#{@y};" if @y?
+      transform = ""
+      # 3D Transforms:
+      # The preferred method even if all of our transforms are actually 2D.
+      # We use 3D transforms to gain GPU accelerated animations.
+      if Sauce.TRANSFORMS3D?
+        if @x? or @y? or @z?
+          transform += "translate3d(#{(@x || 0)}px,#{(@y || 0)}px,#{(@z || 0)}px)"
       
-      # Build Transforms
-      else 
-        transform = ""
-        # 3D Transforms:
-        # The preferred method even if all of our transforms are actually 2D.
-        # We use 3D transforms to gain GPU accelerated animations.
-        if Sauce.TRANSFORMS == "transform3d"
-          if @x? or @y? or @z?
-            transform += "translate3d(#{(@x || 0)}px,#{(@y || 0)}px,#{(@z || 0)}px)"
-          
-          if @scaleX? or @scaleY? or @scaleZ
-            transform += "scale3d(#{@scaleX || 1},#{@scaleY || 1},#{@scaleZ || 0})"
-          else if @scale?
-            transform += "scale3d(#{@scale},#{@scale},#{@scale})"
-          
-          if @rotateX? or @rotateY? or @rotateZ?
-            transform += "rotate3d(#{(@x || 0)}px,#{(@y || 0)}px,#{(@z || 0)}px,#{@rotate}deg)"
-          else if @rotate?
-            transform += "rotate(#{@rotate}deg)"
-            
-        # 2D Transforms:    
-        # We use 2D transforms if available and 3D weren't supported.
-        else if Sauce.TRANSFORMS == "transform"
-          if @x? or @y?
-            transform += "translate(#{(@x || 0)}px,#{(@y || 0)}px)"
-          if @scale?
-            transform += "scale(#{@scale},#{@scale})"
-          if @rotate?
-            transform += "rotate(#{@rotate}deg)"
+        if @scaleX? or @scaleY? or @scaleZ
+          transform += "scale3d(#{@scaleX || 1},#{@scaleY || 1},#{@scaleZ || 0})"
+        else if @scale?
+          transform += "scale3d(#{@scale},#{@scale},#{@scale})"
+      
+        if @rotateX? or @rotateY? or @rotateZ?
+          transform += "rotate3d(#{(@x || 0)}px,#{(@y || 0)}px,#{(@z || 0)}px,#{@rotate}deg)"
+        else if @rotate?
+          transform += "rotate(#{@rotate}deg)"
         
-        css += "-#{Sauce.BROWSER_PREFIX}-transform: #{transform};"
-      
-      # Assemble any explicit CSS... coming soon. For now just return.
-      # TODO: Implement a method for setting and building any other 
-      # CSS properties on the object.
-      css
+      # 2D Transforms:    
+      # We use 2D transforms if available and 3D weren't supported.
+      else if Sauce.TRANSFORMS?
+        if @x? or @y?
+          transform += "translate(#{(@x || 0)}px,#{(@y || 0)}px)"
+        if @scale?
+          transform += "scale(#{@scale},#{@scale})"
+        if @rotate?
+          transform += "rotate(#{@rotate}deg)"
+    
+      transform || false
       
 class @Flavor
   constructor: (params={}) ->
@@ -113,23 +115,31 @@ class @Flavor
     @velocity = Math.abs(@value-@lastResult)
     @lastResult = @value
 
+# The Sauce:
+# -------------------------------------------------
+# The sauce is the main controller object that coordinates 
+# the flavors (eases) and owns an ingredient (css abstraction).
 class @Sauce
-  constructor: ->
-    @name = "ease_#{new Date().getTime()}"
-    @stylesheet       = document.styleSheets[document.styleSheets.length-1];
-    @flavors          = {}
-    @spoon            = (flavors) -> 0
-    @keyframes        = 60
-    @complete         = (element,flavors,browser) -> false
-    @ingredient       = new Ingredient()
+  constructor: (params={}) ->
+    # Get the browser capabilities if we haven't done so yet.
     Sauce.getBrowserCapabilities() unless Sauce.BROWSER_PREFIX?
+    
+    @name             = params.name           || "ease_#{new Date().getTime()}"
+    @stylesheet       = params.stylesheet     || document.styleSheets[document.styleSheets.length-1];
+    @flavors          = params.flavors        || {}
+    @spoon            = params.spoon          || (flavors) -> 0
+    @keyframes        = params.keyframes      || 60
+    @complete         = params.complete       || (element,flavors,browser) -> false
+    
+    # This property is not intended to be private.
+    @_ingredient       = new Ingredient()
     
   addFlavor: (name,params) ->
     @flavors[name] = new Flavor(params)
     this
     
-  create: (keyframes=60) ->
-    interval = 100/keyframes
+  create: (@keyframes=60) ->
+    interval = 100/@keyframes
     currentFrame = 0
     cssFrames = ""
     while currentFrame <= keyframes
@@ -137,35 +147,40 @@ class @Sauce
       frameLabel = "#{keyframe}%"
       if currentFrame < 1
         frameLabel = "from"
-      else if currentFrame == keyframes
+      else if currentFrame == @keyframes
         frameLabel = "to"
       for name, flavor of @flavors
         flavor.compute(keyframe)
-      @spoon(@flavors,@ingredient)
-      cssFrames += " #{frameLabel} {#{@ingredient.css()}}"
+      @spoon(@flavors,@_ingredient)
+      cssFrames += " #{frameLabel} {#{@_ingredient.css()}}"
       currentFrame++
-    animation = "@-#{Sauce.BROWSER_PREFIX}-keyframes #{@name} {#{cssFrames}}"
+    @animationCSS = "@-#{Sauce.BROWSER_PREFIX}-keyframes #{@name} {#{cssFrames}}"
     @index = @stylesheet.cssRules.length
-    console.log animation # Just for debugging THIS.. IS... BETA!!!
-    @stylesheet.insertRule(animation, @index)
+    @stylesheet.insertRule(@animationCSS, @index)
+    this
     
   onComplete: (complete) ->
     @complete = complete
+    this
     
   applyTo: (id,@duration=2) ->
     @create(@keyframes)
     @element = document.getElementById(id)
-    if Sauce.BROWSER_PREFIX == "webkit"
-      @element.style.webkitAnimationName = @name
-      @element.style.webkitAnimationDuration = "#{@duration}s"
-      @element.addEventListener('webkitAnimationEnd', ( =>
-        @complete(@element,@flavors,@browser)
-      ), false)
-    else if Sauce.BROWSER_PREFIX == "moz"
-      @element.style.MozAnimationName = @name
-      @element.style.MozAnimationDuration = "#{@duration}s"
-    return this
+    @element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationName] = @name
+    @element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationDuration] = "#{@duration}s"
+    @element.addEventListener(Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationEnd, ( =>
+      @_completeHandler()
+    ), false)
+    this
   
+  # The underscore denotes that this method should be considered PRIVATE
+  # and is only to be called internally. Use onComplete() to bind
+  _completeHandler: ->
+    @element.style.css += @_ingredient.css()
+    if Sauce.TRANSFORMS?
+      @element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].transform] = @_ingredient.transformRule()
+    @complete(@element,@flavors,@browser)
+    
   # Browser Capability Testing:
   # -------------------------------------------------
   # We need to be able to determine the browser's prefix as most
@@ -174,10 +189,33 @@ class @Sauce
   # 3D or 2D transformations.
   
   @BROWSER_PREFIX: null
+  @TRANSFORMS3D: null
   @TRANSFORMS: null
+  @BROWSER_PROPS:
+    webkit:
+      animationEnd:       'webkitAnimationEnd'
+      animationName:      'webkitAnimationName'
+      animationDuration:  'webkitAnimationDuration'
+      transform:          'WebkitTransform'
+    moz:
+      animationEnd:       'animationend'
+      animationName:      'MozAnimationName'
+      animationDuration:  'MozAnimationDuration'
+      transform:          'MozTransform'
+    o:
+      animationEnd:       null
+      animationName:      null
+      animationDuration:  null
+      transform:          'OTransform'
+    msie:
+      animationEnd:       null
+      animationName:      null
+      animationDuration:  null
+      transform:          'msTransform'
   @getBrowserCapabilities: ->
     
     # Browser Prefix:
+    # -------------------------------------------------
     # First we'll get the browser prefix necessary. This is done by running
     # a regex on the userAgent property. There are a few gotchas so we have
     # a 'negator' property on the JS object that runs to cancel out any
@@ -198,6 +236,8 @@ class @Sauce
        if options.condition.test(userAgent)
          @BROWSER_PREFIX = prefix unless options.negator? and options.negator.test(userAgent)
     
+    # Transform Types:
+    # -------------------------------------------------
     # Simple test for transforms or 3D transforms inspired by modernizr.
     # See: https://github.com/Modernizr/Modernizr/blob/master/modernizr.js#L594
     style = document.createElement('test').style
@@ -206,5 +246,7 @@ class @Sauce
       transform: ['transformProperty', 'WebkitTransform', 'MozTransform', 'OTransform', 'msTransform']
     for name, properties of features
       for property in properties
-        @TRANSFORMS or= name unless style[property] == undefined
+        unless style[property] == undefined
+          if name == "transform3d" then @TRANSFORMS3D = true
+          if name == "transform" then @TRANSFORMS = true
     

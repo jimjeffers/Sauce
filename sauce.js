@@ -28,44 +28,50 @@
     Ingredient.prototype.css = function() {
       var css, transform;
       css = "";
-      if ((this.x != null) || (this.y != null) || (this.z != null) || (this.scale != null) || (this.rotate != null)) {
-        if (!(Sauce.TRANSFORMS != null)) {
-          if (this.x != null) {
-            css += "left:" + this.x + ";";
-          }
-          if (this.y != null) {
-            css += "top:" + this.y + ";";
-          }
-        } else {
-          transform = "";
-          if (Sauce.TRANSFORMS === "transform3d") {
-            if ((this.x != null) || (this.y != null) || (this.z != null)) {
-              transform += "translate3d(" + (this.x || 0) + "px," + (this.y || 0) + "px," + (this.z || 0) + "px)";
-            }
-            if ((this.scaleX != null) || (this.scaleY != null) || this.scaleZ) {
-              transform += "scale3d(" + (this.scaleX || 1) + "," + (this.scaleY || 1) + "," + (this.scaleZ || 0) + ")";
-            } else if (this.scale != null) {
-              transform += "scale3d(" + this.scale + "," + this.scale + "," + this.scale + ")";
-            }
-            if ((this.rotateX != null) || (this.rotateY != null) || (this.rotateZ != null)) {
-              transform += "rotate3d(" + (this.x || 0) + "px," + (this.y || 0) + "px," + (this.z || 0) + "px," + this.rotate + "deg)";
-            } else if (this.rotate != null) {
-              transform += "rotate(" + this.rotate + "deg)";
-            }
-          } else if (Sauce.TRANSFORMS === "transform") {
-            if ((this.x != null) || (this.y != null)) {
-              transform += "translate(" + (this.x || 0) + "px," + (this.y || 0) + "px)";
-            }
-            if (this.scale != null) {
-              transform += "scale(" + this.scale + "," + this.scale + ")";
-            }
-            if (this.rotate != null) {
-              transform += "rotate(" + this.rotate + "deg)";
-            }
-          }
+      if (!(Sauce.TRANSFORMS != null)) {
+        if (this.x != null) {
+          css += "left:" + this.x + ";";
+        }
+        if (this.y != null) {
+          css += "top:" + this.y + ";";
+        }
+      } else {
+        if ((transform = this.transformRule()) != null) {
           css += "-" + Sauce.BROWSER_PREFIX + "-transform: " + transform + ";";
         }
-        return css;
+      }
+      return css;
+    };
+    Ingredient.prototype.transformRule = function() {
+      var transform;
+      if ((this.x != null) || (this.y != null) || (this.z != null) || (this.scale != null) || (this.rotate != null)) {
+        transform = "";
+        if (Sauce.TRANSFORMS3D != null) {
+          if ((this.x != null) || (this.y != null) || (this.z != null)) {
+            transform += "translate3d(" + (this.x || 0) + "px," + (this.y || 0) + "px," + (this.z || 0) + "px)";
+          }
+          if ((this.scaleX != null) || (this.scaleY != null) || this.scaleZ) {
+            transform += "scale3d(" + (this.scaleX || 1) + "," + (this.scaleY || 1) + "," + (this.scaleZ || 0) + ")";
+          } else if (this.scale != null) {
+            transform += "scale3d(" + this.scale + "," + this.scale + "," + this.scale + ")";
+          }
+          if ((this.rotateX != null) || (this.rotateY != null) || (this.rotateZ != null)) {
+            transform += "rotate3d(" + (this.x || 0) + "px," + (this.y || 0) + "px," + (this.z || 0) + "px," + this.rotate + "deg)";
+          } else if (this.rotate != null) {
+            transform += "rotate(" + this.rotate + "deg)";
+          }
+        } else if (Sauce.TRANSFORMS != null) {
+          if ((this.x != null) || (this.y != null)) {
+            transform += "translate(" + (this.x || 0) + "px," + (this.y || 0) + "px)";
+          }
+          if (this.scale != null) {
+            transform += "scale(" + this.scale + "," + this.scale + ")";
+          }
+          if (this.rotate != null) {
+            transform += "rotate(" + this.rotate + "deg)";
+          }
+        }
+        return transform || false;
       }
     };
     return Ingredient;
@@ -103,32 +109,33 @@
     return Flavor;
   })();
   this.Sauce = (function() {
-    function Sauce() {
-      this.name = "ease_" + (new Date().getTime());
-      this.stylesheet = document.styleSheets[document.styleSheets.length - 1];
-      this.flavors = {};
-      this.spoon = function(flavors) {
-        return 0;
-      };
-      this.keyframes = 60;
-      this.complete = function(element, flavors, browser) {
-        return false;
-      };
-      this.ingredient = new Ingredient();
+    function Sauce(params) {
+      if (params == null) {
+        params = {};
+      }
       if (Sauce.BROWSER_PREFIX == null) {
         Sauce.getBrowserCapabilities();
       }
+      this.name = params.name || ("ease_" + (new Date().getTime()));
+      this.stylesheet = params.stylesheet || document.styleSheets[document.styleSheets.length - 1];
+      this.flavors = params.flavors || {};
+      this.spoon = params.spoon || function(flavors) {
+        return 0;
+      };
+      this.keyframes = params.keyframes || 60;
+      this.complete = params.complete || function(element, flavors, browser) {
+        return false;
+      };
+      this._ingredient = new Ingredient();
     }
     Sauce.prototype.addFlavor = function(name, params) {
       this.flavors[name] = new Flavor(params);
       return this;
     };
     Sauce.prototype.create = function(keyframes) {
-      var animation, cssFrames, currentFrame, flavor, frameLabel, interval, keyframe, name, _ref;
-      if (keyframes == null) {
-        keyframes = 60;
-      }
-      interval = 100 / keyframes;
+      var cssFrames, currentFrame, flavor, frameLabel, interval, keyframe, name, _ref;
+      this.keyframes = keyframes != null ? keyframes : 60;
+      interval = 100 / this.keyframes;
       currentFrame = 0;
       cssFrames = "";
       while (currentFrame <= keyframes) {
@@ -136,7 +143,7 @@
         frameLabel = "" + keyframe + "%";
         if (currentFrame < 1) {
           frameLabel = "from";
-        } else if (currentFrame === keyframes) {
+        } else if (currentFrame === this.keyframes) {
           frameLabel = "to";
         }
         _ref = this.flavors;
@@ -144,36 +151,66 @@
           flavor = _ref[name];
           flavor.compute(keyframe);
         }
-        this.spoon(this.flavors, this.ingredient);
-        cssFrames += " " + frameLabel + " {" + (this.ingredient.css()) + "}";
+        this.spoon(this.flavors, this._ingredient);
+        cssFrames += " " + frameLabel + " {" + (this._ingredient.css()) + "}";
         currentFrame++;
       }
-      animation = "@-" + Sauce.BROWSER_PREFIX + "-keyframes " + this.name + " {" + cssFrames + "}";
+      this.animationCSS = "@-" + Sauce.BROWSER_PREFIX + "-keyframes " + this.name + " {" + cssFrames + "}";
       this.index = this.stylesheet.cssRules.length;
-      console.log(animation);
-      return this.stylesheet.insertRule(animation, this.index);
+      this.stylesheet.insertRule(this.animationCSS, this.index);
+      return this;
     };
     Sauce.prototype.onComplete = function(complete) {
-      return this.complete = complete;
+      this.complete = complete;
+      return this;
     };
     Sauce.prototype.applyTo = function(id, duration) {
       this.duration = duration != null ? duration : 2;
       this.create(this.keyframes);
       this.element = document.getElementById(id);
-      if (Sauce.BROWSER_PREFIX === "webkit") {
-        this.element.style.webkitAnimationName = this.name;
-        this.element.style.webkitAnimationDuration = "" + this.duration + "s";
-        this.element.addEventListener('webkitAnimationEnd', (__bind(function() {
-          return this.complete(this.element, this.flavors, this.browser);
-        }, this)), false);
-      } else if (Sauce.BROWSER_PREFIX === "moz") {
-        this.element.style.MozAnimationName = this.name;
-        this.element.style.MozAnimationDuration = "" + this.duration + "s";
-      }
+      this.element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationName] = this.name;
+      this.element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationDuration] = "" + this.duration + "s";
+      this.element.addEventListener(Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationEnd, (__bind(function() {
+        return this._completeHandler();
+      }, this)), false);
       return this;
     };
+    Sauce.prototype._completeHandler = function() {
+      this.element.style.css += this._ingredient.css();
+      if (Sauce.TRANSFORMS != null) {
+        this.element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].transform] = this._ingredient.transformRule();
+      }
+      return this.complete(this.element, this.flavors, this.browser);
+    };
     Sauce.BROWSER_PREFIX = null;
+    Sauce.TRANSFORMS3D = null;
     Sauce.TRANSFORMS = null;
+    Sauce.BROWSER_PROPS = {
+      webkit: {
+        animationEnd: 'webkitAnimationEnd',
+        animationName: 'webkitAnimationName',
+        animationDuration: 'webkitAnimationDuration',
+        transform: 'WebkitTransform'
+      },
+      moz: {
+        animationEnd: 'animationend',
+        animationName: 'MozAnimationName',
+        animationDuration: 'MozAnimationDuration',
+        transform: 'MozTransform'
+      },
+      o: {
+        animationEnd: null,
+        animationName: null,
+        animationDuration: null,
+        transform: 'OTransform'
+      },
+      msie: {
+        animationEnd: null,
+        animationName: null,
+        animationDuration: null,
+        transform: 'msTransform'
+      }
+    };
     Sauce.getBrowserCapabilities = function() {
       var features, name, options, prefix, prefixes, properties, property, style, userAgent, _results;
       prefixes = {
@@ -214,7 +251,7 @@
           _results2 = [];
           for (_i = 0, _len = properties.length; _i < _len; _i++) {
             property = properties[_i];
-            _results2.push(style[property] !== void 0 ? this.TRANSFORMS || (this.TRANSFORMS = name) : void 0);
+            _results2.push(style[property] !== void 0 ? (name === "transform3d" ? this.TRANSFORMS3D = true : void 0, name === "transform" ? this.TRANSFORMS = true : void 0) : void 0);
           }
           return _results2;
         }).call(this));
