@@ -1,11 +1,11 @@
-# Sauce (BETA 0.1.1)
+# Sauce (BETA 0.2.1)
 ## Add some flavor to the web.
 
 Sauce is a micro-framework (if you even can consider it that!) for building complex transitions that can't be achieved with a regular CSS transition. Let's say you want to use complex effects such as those that can only be achieved with elastic or bounce easing? Or maybe you want to animate two different properties at the same time utilizing a delay on one of the properties? Well, I've found you can get pretty far with CSS transitions but some of these things just aren't possible unless you turn to javascript to get something crazy done. Sauce is here and it makes the ridiculous easy (relatively speaking of course)!
 
 ## How it Works
 
-Sauce relies on the easing equations I ported from Robert Penner in another project called Easie. Your first step is to include easie.js and sauce.js into your project.
+Sauce relies on the easing equations I ported from Robert Penner in another project called [Easie](https://github.com/jimjeffers/Easie). Your first step is to include easie.js and sauce.js into your project.
 
 ## Components
 
@@ -160,6 +160,10 @@ The ingredient is an intelligent object that allows you to set CSS properties su
 2. Using the ingredient object allows us to abstract the cross-browser CSS problems away from the user. 
 
 So all you need to do is set the 'x' property on an object. The ingredient will then generate the CSS for a 3D translation with a -webkit prefix in Chrome and a 2D translation with a -moz prefix in firefox. This makes life a lot easier!
+
+# Test Suite
+
+A test suite is now provided using [Jasmine.js](http://pivotal.github.com/jasmine/)
 
 # TODOs
 
