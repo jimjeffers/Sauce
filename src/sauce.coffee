@@ -92,6 +92,7 @@ class @Ingredient
       
 class @Flavor
   constructor: (params={}) ->
+    @name       = params.name       || null
     @from       = params.from       || 0
     @to         = params.to         || 100
     @equation   = params.equation   || null
@@ -126,49 +127,65 @@ class @Sauce
     
     @name             = params.name           || "ease_#{new Date().getTime()}"
     @stylesheet       = params.stylesheet     || document.styleSheets[document.styleSheets.length-1];
-    @flavors          = params.flavors        || {}
     @spoon            = params.spoon          || (flavors) -> 0
     @keyframes        = params.keyframes      || 60
-    @complete         = params.complete       || (element,flavors,browser) -> false
+    @animationCSS     = null
     
-    # This property is not intended to be private.
-    @_ingredient       = new Ingredient()
+    # The following '_xxx' properties are intended to be private.
+    @_complete        = params.complete       || (element,flavors,browser) -> false
+    @_ingredient      = new Ingredient()
+    @_flavors         = {}
     
-  addFlavor: (name,params) ->
-    @flavors[name] = new Flavor(params)
+    if params.flavors?
+      for name,params of params.flavors
+        @addFlavor(name,params) 
+  
+  # Convenience method for adding a flavor to the sauce.
+  addFlavor: (flavor,params={}) ->
+    @_flavors[flavor.name] = flavor if flavor instanceof Flavor and flavor.name?
+    @_flavors[flavor] = new Flavor(params)
     this
-    
+  
+  # Convenience method for retrieving the current flavors.
+  flavors: -> @_flavors
+  
+  # Returns the interval. Represents an increment for percentages
+  # in a @-keyframes CSS animation.
+  interval: -> 100/@keyframes
+  
+  # Generates a CSS keyframe animation.
   create: (@keyframes=60) ->
-    interval = 100/@keyframes
     currentFrame = 0
     cssFrames = ""
     while currentFrame <= keyframes
-      keyframe = currentFrame * interval
+      keyframe = currentFrame * @interval()
       frameLabel = "#{keyframe}%"
       if currentFrame < 1
         frameLabel = "from"
       else if currentFrame == @keyframes
         frameLabel = "to"
-      for name, flavor of @flavors
+      for name, flavor of @_flavors
         flavor.compute(keyframe)
-      @spoon(@flavors,@_ingredient)
+      @spoon(@_flavors,@_ingredient)
       cssFrames += " #{frameLabel} {#{@_ingredient.css()}}"
       currentFrame++
     @animationCSS = "@-#{Sauce.BROWSER_PREFIX}-keyframes #{@name} {#{cssFrames}}"
     @index = @stylesheet.cssRules.length
     @stylesheet.insertRule(@animationCSS, @index)
     this
-    
+  
+  # Convenience method for applying the complete handler.
   onComplete: (complete) ->
-    @complete = complete
+    @_complete = complete
     this
-    
+  
+  # Binds the 
   applyTo: (id,@duration=2) ->
     @create(@keyframes)
     @element = document.getElementById(id)
-    @element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationName] = @name
-    @element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationDuration] = "#{@duration}s"
-    @element.addEventListener(Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationEnd, ( =>
+    @element.style[Sauce.CURRENT_PROPS.animationName] = @name
+    @element.style[Sauce.CURRENT_PROPS.animationDuration] = "#{@duration}s"
+    @element.addEventListener(Sauce.CURRENT_PROPS.animationEnd, ( =>
       @_completeHandler()
     ), false)
     this
@@ -178,8 +195,8 @@ class @Sauce
   _completeHandler: ->
     @element.style.css += @_ingredient.css()
     if Sauce.TRANSFORMS?
-      @element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].transform] = @_ingredient.transformRule()
-    @complete(@element,@flavors,@browser)
+      @element.style[Sauce.CURRENT_PROPS.transform] = @_ingredient.transformRule()
+    @_complete(@element,@flavors,@browser)
     
   # Browser Capability Testing:
   # -------------------------------------------------
@@ -191,6 +208,7 @@ class @Sauce
   @BROWSER_PREFIX: null
   @TRANSFORMS3D: null
   @TRANSFORMS: null
+  @CURRENT_PROPS: null
   @BROWSER_PROPS:
     webkit:
       animationEnd:       'webkitAnimationEnd'
@@ -232,9 +250,12 @@ class @Sauce
         condition:  /mozilla/
         negator:    /(compatible|webkit)/
     userAgent = navigator.userAgent.toLowerCase()
+    
     for prefix, options of prefixes
        if options.condition.test(userAgent)
          @BROWSER_PREFIX = prefix unless options.negator? and options.negator.test(userAgent)
+    
+    @CURRENT_PROPS = @BROWSER_PROPS[@BROWSER_PREFIX]
     
     # Transform Types:
     # -------------------------------------------------

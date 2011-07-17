@@ -81,6 +81,7 @@
       if (params == null) {
         params = {};
       }
+      this.name = params.name || null;
       this.from = params.from || 0;
       this.to = params.to || 100;
       this.equation = params.equation || null;
@@ -110,6 +111,7 @@
   })();
   this.Sauce = (function() {
     function Sauce(params) {
+      var name, _ref;
       if (params == null) {
         params = {};
       }
@@ -118,40 +120,59 @@
       }
       this.name = params.name || ("ease_" + (new Date().getTime()));
       this.stylesheet = params.stylesheet || document.styleSheets[document.styleSheets.length - 1];
-      this.flavors = params.flavors || {};
       this.spoon = params.spoon || function(flavors) {
         return 0;
       };
       this.keyframes = params.keyframes || 60;
-      this.complete = params.complete || function(element, flavors, browser) {
+      this.animationCSS = null;
+      this._complete = params.complete || function(element, flavors, browser) {
         return false;
       };
       this._ingredient = new Ingredient();
+      this._flavors = {};
+      if (params.flavors != null) {
+        _ref = params.flavors;
+        for (name in _ref) {
+          params = _ref[name];
+          this.addFlavor(name, params);
+        }
+      }
     }
-    Sauce.prototype.addFlavor = function(name, params) {
-      this.flavors[name] = new Flavor(params);
+    Sauce.prototype.addFlavor = function(flavor, params) {
+      if (params == null) {
+        params = {};
+      }
+      if (flavor instanceof Flavor && (flavor.name != null)) {
+        this._flavors[flavor.name] = flavor;
+      }
+      this._flavors[flavor] = new Flavor(params);
       return this;
     };
+    Sauce.prototype.flavors = function() {
+      return this._flavors;
+    };
+    Sauce.prototype.interval = function() {
+      return 100 / this.keyframes;
+    };
     Sauce.prototype.create = function(keyframes) {
-      var cssFrames, currentFrame, flavor, frameLabel, interval, keyframe, name, _ref;
+      var cssFrames, currentFrame, flavor, frameLabel, keyframe, name, _ref;
       this.keyframes = keyframes != null ? keyframes : 60;
-      interval = 100 / this.keyframes;
       currentFrame = 0;
       cssFrames = "";
       while (currentFrame <= keyframes) {
-        keyframe = currentFrame * interval;
+        keyframe = currentFrame * this.interval();
         frameLabel = "" + keyframe + "%";
         if (currentFrame < 1) {
           frameLabel = "from";
         } else if (currentFrame === this.keyframes) {
           frameLabel = "to";
         }
-        _ref = this.flavors;
+        _ref = this._flavors;
         for (name in _ref) {
           flavor = _ref[name];
           flavor.compute(keyframe);
         }
-        this.spoon(this.flavors, this._ingredient);
+        this.spoon(this._flavors, this._ingredient);
         cssFrames += " " + frameLabel + " {" + (this._ingredient.css()) + "}";
         currentFrame++;
       }
@@ -161,16 +182,16 @@
       return this;
     };
     Sauce.prototype.onComplete = function(complete) {
-      this.complete = complete;
+      this._complete = complete;
       return this;
     };
     Sauce.prototype.applyTo = function(id, duration) {
       this.duration = duration != null ? duration : 2;
       this.create(this.keyframes);
       this.element = document.getElementById(id);
-      this.element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationName] = this.name;
-      this.element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationDuration] = "" + this.duration + "s";
-      this.element.addEventListener(Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].animationEnd, (__bind(function() {
+      this.element.style[Sauce.CURRENT_PROPS.animationName] = this.name;
+      this.element.style[Sauce.CURRENT_PROPS.animationDuration] = "" + this.duration + "s";
+      this.element.addEventListener(Sauce.CURRENT_PROPS.animationEnd, (__bind(function() {
         return this._completeHandler();
       }, this)), false);
       return this;
@@ -178,13 +199,14 @@
     Sauce.prototype._completeHandler = function() {
       this.element.style.css += this._ingredient.css();
       if (Sauce.TRANSFORMS != null) {
-        this.element.style[Sauce.BROWSER_PROPS[Sauce.BROWSER_PREFIX].transform] = this._ingredient.transformRule();
+        this.element.style[Sauce.CURRENT_PROPS.transform] = this._ingredient.transformRule();
       }
-      return this.complete(this.element, this.flavors, this.browser);
+      return this._complete(this.element, this.flavors, this.browser);
     };
     Sauce.BROWSER_PREFIX = null;
     Sauce.TRANSFORMS3D = null;
     Sauce.TRANSFORMS = null;
+    Sauce.CURRENT_PROPS = null;
     Sauce.BROWSER_PROPS = {
       webkit: {
         animationEnd: 'webkitAnimationEnd',
@@ -238,6 +260,7 @@
           }
         }
       }
+      this.CURRENT_PROPS = this.BROWSER_PROPS[this.BROWSER_PREFIX];
       style = document.createElement('test').style;
       features = {
         transform3d: ['perspectiveProperty', 'WebkitPerspective', 'MozPerspective', 'OPerspective', 'msPerspective'],
