@@ -1,32 +1,84 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <link rel="stylesheet" href="demo.css" type="text/css" media="screen" title="no title" charset="utf-8">
-    <script type="text/javascript" charset="utf-8" src="src/easie.js"></script>
-    <script type="text/javascript" charset="utf-8" src="src/sauce.js"></script>
-  </head>
-  <body id="">
-    <div id="test">Bouncy Demo</div>
-    <script type="text/javascript" charset="utf-8">
-      var hotSauce = new Sauce();
-      hotSauce.addFlavor("chili",{
-        equation: Easie.elasticOut,
-        from: -400,
-        to: 0,
-        period: 15
-      }).addFlavor("pepper",{
+<!doctype html>
+<!--[if lt IE 7 ]> <html class="no-js ie6" lang="en"> <![endif]-->
+<!--[if IE 7 ]>    <html class="no-js ie7" lang="en"> <![endif]-->
+<!--[if IE 8 ]>    <html class="no-js ie8" lang="en"> <![endif]-->
+<!--[if (gte IE 9)|!(IE)]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+  <title>Sauce.js - Add some flavor to the web!</title>
+  <meta name="description" content="Sauce.js demo page.">
+  <meta name="author" content="Jim Jeffers">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png"> -->
+
+  <link rel="stylesheet" href="demo.css?v=2">
+  
+  <!-- TYPEKIT  -->
+  <script type="text/javascript" src="http://use.typekit.com/kzv1uta.js"></script>
+  <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
+</head>
+
+<body>
+
+  <div id="container">
+    <header>
+      <h1 class="tk-bistro-script-web" id="sauce">Sauce.js</h1>
+      <h2 class="tk-bistro-script-web" id="tagline">Add some flavor to the web!</h2>
+    </header>
+  </div>
+  
+  <script type="text/javascript" charset="utf-8" src="src/easie.js"></script>
+  <script type="text/javascript" charset="utf-8" src="src/sauce.js"></script>
+  
+  <script type="text/javascript" charset="utf-8">
+    window.onload = function() {
+      // Define the flavors...
+      var spicyBounce = new Flavor("spicyBounce", {
+        equation: Easie.bounceOut,
+        from: -200,
+        to: 0
+      });
+      
+      var sourScale = new Flavor("sourScale", {
         equation: Easie.circOut,
-        from: 0.5,
+        from: 0,
         to: 1,
-        endFrame: 75
+        startFrame:0,
+        endFrame: 45
       });
-      hotSauce.spoon = function(flavors,ingredient) {
-        ingredient.y = flavors.chili.value;
-        ingredient.scale = flavors.pepper.value;
-      }
-      hotSauce.applyTo("test",2).onComplete(function(element,flavors,browser) {
-        console.log("Completed!")
+      
+      var tangySlide = new Flavor("tangySlide", {
+        equation: Easie.backInOut,
+        from: -100,
+        to: 0
       });
-    </script>
-  </body>
+      
+      // Create some sauces...
+      var marinara = new Sauce().addFlavor(spicyBounce).addFlavor(sourScale);
+      marinara.stirWith(
+        function(flavors,ingredient) {
+          ingredient.y = flavors.spicyBounce.value;
+          ingredient.scale = flavors.sourScale.value;
+        });
+      
+      var pesto = new Sauce().addFlavor(tangySlide).addFlavor(sourScale);
+      pesto.stirWith(
+        function(flavors,ingredient) {
+          ingredient.x = flavors.tangySlide.value;
+          ingredient.setRule("opacity",flavors.sourScale.value)
+        });
+      pesto.applyTo("tagline");
+      
+      // Apply the sauce.
+      marinara.applyTo("sauce",1).onComplete(function(element,flavors,browser) {
+        pesto.pour(1);
+      }).pour(1);
+      
+    }
+  </script>
+</body>
 </html>

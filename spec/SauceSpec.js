@@ -58,32 +58,30 @@
       });
     });
     describe("convenience methods", function() {
-      return it("should add a flavor called chili if I use addFlavor", function() {
+      it("should add a flavor called chili on the fly if I use addFlavor", function() {
         sauce.addFlavor("chili", {
           equation: Easie.elasticOut,
           from: -400,
-          to: 0,
-          period: 15
-        });
-        return expect(sauce.flavors().chili).toBeAFlavor();
-      });
-    });
-    return describe("method chaining", function() {
-      it("should allow me to chain flavors if I use addFlavor() in a sequence", function() {
-        sauce.addFlavor("chili", {
-          equation: Easie.elasticOut,
-          from: -400,
-          to: 0,
-          period: 15
-        }).addFlavor("pepper", {
-          equation: Easie.elasticIn,
-          from: 400,
           to: 0,
           period: 15
         });
         expect(sauce.flavors().chili).toBeAFlavor();
-        return expect(sauce.flavors().pepper).toBeAFlavor();
+        return expect(sauce.flavors().length === 1).toBeTruthy();
       });
+      return it("should add an existing flavor called chili if I use addFlavor", function() {
+        var chili;
+        chili = new Flavor("chili", {
+          equation: Easie.elasticOut,
+          from: -400,
+          to: 0,
+          period: 15
+        });
+        sauce.addFlavor(chili);
+        expect(sauce.flavors().chili).toBeAFlavor();
+        return expect(sauce.flavors().length === 1).toBeTruthy();
+      });
+    });
+    return describe("method chaining", function() {
       return it("should allow me to chain flavors if I use addFlavor() in a sequence", function() {
         sauce.addFlavor("chili", {
           equation: Easie.elasticOut,

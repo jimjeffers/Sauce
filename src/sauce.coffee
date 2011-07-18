@@ -32,14 +32,24 @@ class @Ingredient
     @rotateY    = params.rotate     || null
     @rotateZ    = params.rotate     || null
     
-    # Opacity:
-    @opacity    = params.opacity    || null
+    # Custom CSS allows the user to pass in standard 
+    # CSS properties.
+    @customCSS  = null
   
+  setRule: (property,value) ->
+    @customCSS = {} unless @customCSS?
+    @customCSS[property] = value
+    
   css: ->
     # We'll use string concatenation since it's more performant
     # then Array.join()
     css = ""
     
+    # Handle explicit CSS:
+    if @customCSS?
+      for property,value of @customCSS
+        css += "#{property}: #{value};"
+      
     # If no transforms were available we only support
     # animating the top and left properties of the object.
     # But to be honest.. it's doubtful CSS Animation will
@@ -88,13 +98,13 @@ class @Ingredient
         if @rotate?
           transform += "rotate(#{@rotate}deg)"
     
-      transform || false
+    transform || false
       
 class @Flavor
-  constructor: (params={}) ->
-    @name       = params.name       || null
+  constructor: (name,params={}) ->
+    @name       = name
     @from       = params.from       || 0
-    @to         = params.to         || 100
+    @to         = params.to         || 0
     @equation   = params.equation   || null
     @startFrame = params.startFrame || 0
     @endFrame   = params.endFrame   || 100
@@ -125,8 +135,8 @@ class @Sauce
     # Get the browser capabilities if we haven't done so yet.
     Sauce.getBrowserCapabilities() unless Sauce.BROWSER_PREFIX?
     
-    @name             = params.name           || "ease_#{new Date().getTime()}"
-    @stylesheet       = params.stylesheet     || document.styleSheets[document.styleSheets.length-1];
+    @name             = params.name           || "ease_#{Sauce.animationID()}_#{new Date().getTime()}"
+    @stylesheet       = params.stylesheet     || Sauce.STYLESHEET
     @spoon            = params.spoon          || (flavors) -> 0
     @keyframes        = params.keyframes      || 60
     @animationCSS     = null
@@ -142,8 +152,15 @@ class @Sauce
   
   # Convenience method for adding a flavor to the sauce.
   addFlavor: (flavor,params={}) ->
-    @_flavors[flavor.name] = flavor if flavor instanceof Flavor and flavor.name?
-    @_flavors[flavor] = new Flavor(params)
+    if flavor instanceof Flavor and flavor.name?
+      @_flavors[flavor.name] = flavor
+    else
+      @_flavors[flavor] = new Flavor(flavor,params)
+    this
+  
+  # Convenience method for adding a flavor to the sauce.
+  stirWith: (spoon) ->
+    @spoon = spoon
     this
   
   # Convenience method for retrieving the current flavors.
@@ -158,15 +175,12 @@ class @Sauce
     currentFrame = 0
     cssFrames = ""
     while currentFrame <= keyframes
-      keyframe = currentFrame * @interval()
+      keyframe = @_computeKeyframe(currentFrame)
       frameLabel = "#{keyframe}%"
       if currentFrame < 1
         frameLabel = "from"
       else if currentFrame == @keyframes
         frameLabel = "to"
-      for name, flavor of @_flavors
-        flavor.compute(keyframe)
-      @spoon(@_flavors,@_ingredient)
       cssFrames += " #{frameLabel} {#{@_ingredient.css()}}"
       currentFrame++
     @animationCSS = "@-#{Sauce.BROWSER_PREFIX}-keyframes #{@name} {#{cssFrames}}"
@@ -179,25 +193,48 @@ class @Sauce
     @_complete = complete
     this
   
-  # Binds the 
-  applyTo: (id,@duration=2) ->
-    @create(@keyframes)
+  # Preps the element and generates the keyframes.
+  applyTo: (id) ->
     @element = document.getElementById(id)
-    @element.style[Sauce.CURRENT_PROPS.animationName] = @name
-    @element.style[Sauce.CURRENT_PROPS.animationDuration] = "#{@duration}s"
+    @_applyCSS(0)
+    @create(@keyframes)
     @element.addEventListener(Sauce.CURRENT_PROPS.animationEnd, ( =>
       @_completeHandler()
     ), false)
     this
   
+  # Applies the animation to the object.
+  pour: (@duration=2) ->
+    @element.style[Sauce.CURRENT_PROPS.animationName] = @name
+    @element.style[Sauce.CURRENT_PROPS.animationDuration] = "#{@duration}s"
+  
   # The underscore denotes that this method should be considered PRIVATE
   # and is only to be called internally. Use onComplete() to bind
   _completeHandler: ->
-    @element.style.css += @_ingredient.css()
+    @_applyCSS(100)
+    @_complete(@element,@flavors,@browser)
+  
+  _computeKeyframe: (frame) ->
+    keyframe = frame * @interval()
+    for name, flavor of @_flavors
+      flavor.compute(keyframe)
+    @spoon(@_flavors,@_ingredient)
+    return keyframe
+      
+  _applyCSS: (frame) ->
+    @_computeKeyframe(frame)
+    if @_ingredient.customCSS?
+      for property,value of @_ingredient.customCSS
+       @element.style[property] = value
     if Sauce.TRANSFORMS?
       @element.style[Sauce.CURRENT_PROPS.transform] = @_ingredient.transformRule()
-    @_complete(@element,@flavors,@browser)
-    
+  
+  # Increments Animation ID
+  @_ANIMATION_ID = 0
+  
+  @animationID: ->
+    @_ANIMATION_ID += 1
+  
   # Browser Capability Testing:
   # -------------------------------------------------
   # We need to be able to determine the browser's prefix as most
@@ -209,6 +246,7 @@ class @Sauce
   @TRANSFORMS3D: null
   @TRANSFORMS: null
   @CURRENT_PROPS: null
+  @STYLESHEET: null
   @BROWSER_PROPS:
     webkit:
       animationEnd:       'webkitAnimationEnd'
@@ -230,6 +268,7 @@ class @Sauce
       animationName:      null
       animationDuration:  null
       transform:          'msTransform'
+      
   @getBrowserCapabilities: ->
     
     # Browser Prefix:
@@ -256,6 +295,17 @@ class @Sauce
          @BROWSER_PREFIX = prefix unless options.negator? and options.negator.test(userAgent)
     
     @CURRENT_PROPS = @BROWSER_PROPS[@BROWSER_PREFIX]
+    
+    # Get last useable stylesheet:
+    document.styleSheets[document.styleSheets.length-1];
+    index = document.styleSheets.length
+    while index > 1 and !@STYLESHEET?
+      try
+        stylesheet = document.styleSheets[index-1]
+        @STYLESHEET = stylesheet if stylesheet.cssRules?
+      catch error
+        console.log "Problem selecting stylesheet: #{error}"
+      index -= 1
     
     # Transform Types:
     # -------------------------------------------------

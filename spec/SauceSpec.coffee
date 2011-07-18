@@ -54,7 +54,7 @@ describe("Sauce", ->
   )
   
   describe("convenience methods", ->
-    it("should add a flavor called chili if I use addFlavor", ->
+    it("should add a flavor called chili on the fly if I use addFlavor", ->
       sauce.addFlavor("chili", {
         equation: Easie.elasticOut
         from: -400
@@ -62,26 +62,22 @@ describe("Sauce", ->
         period: 15
       })
       expect(sauce.flavors().chili).toBeAFlavor()
+      expect(sauce.flavors().length == 1).toBeTruthy()
+    )
+    it("should add an existing flavor called chili if I use addFlavor", ->
+      chili = new Flavor("chili", {
+        equation: Easie.elasticOut
+        from: -400
+        to: 0
+        period: 15
+      })
+      sauce.addFlavor(chili)
+      expect(sauce.flavors().chili).toBeAFlavor()
+      expect(sauce.flavors().length == 1).toBeTruthy()
     )
   )
   
   describe("method chaining", ->
-    it("should allow me to chain flavors if I use addFlavor() in a sequence", ->
-      sauce.addFlavor("chili", {
-        equation: Easie.elasticOut
-        from: -400
-        to: 0
-        period: 15
-      }).addFlavor("pepper", {
-        equation: Easie.elasticIn
-        from: 400
-        to: 0
-        period: 15
-      })
-      expect(sauce.flavors().chili).toBeAFlavor()
-      expect(sauce.flavors().pepper).toBeAFlavor()
-    )
-    
     it("should allow me to chain flavors if I use addFlavor() in a sequence", ->
       sauce.addFlavor("chili", {
         equation: Easie.elasticOut
