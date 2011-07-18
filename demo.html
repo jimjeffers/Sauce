@@ -36,48 +36,18 @@
   
   <script type="text/javascript" charset="utf-8">
     window.onload = function() {
-      // Define the flavors...
-      var spicyBounce = new Flavor("spicyBounce", {
-        equation: Easie.bounceOut,
-        from: -200,
-        to: 0
+      var headlineSauce = new Sauce();
+      headlineSauce.recipe(function(element){
+        element.change("y").from(-200).using(Easie.bounceOut);
+        element.change("scale").from(0).using(Easie.circOut);
       });
+      headlineSauce.duration(1).delay(1).putOn("sauce");
       
-      var sourScale = new Flavor("sourScale", {
-        equation: Easie.circOut,
-        from: 0,
-        to: 1,
-        startFrame:0,
-        endFrame: 45
+      var taglineSauce = new Sauce();
+      taglineSauce.recipe(function(element){
+        element.change("x").from(-200).using(Easie.backInOut);
       });
-      
-      var tangySlide = new Flavor("tangySlide", {
-        equation: Easie.backInOut,
-        from: -100,
-        to: 0
-      });
-      
-      // Create some sauces...
-      var marinara = new Sauce().addFlavor(spicyBounce).addFlavor(sourScale);
-      marinara.stirWith(
-        function(flavors,ingredient) {
-          ingredient.y = flavors.spicyBounce.value;
-          ingredient.scale = flavors.sourScale.value;
-        });
-      
-      var pesto = new Sauce().addFlavor(tangySlide).addFlavor(sourScale);
-      pesto.stirWith(
-        function(flavors,ingredient) {
-          ingredient.x = flavors.tangySlide.value;
-          ingredient.setRule("opacity",flavors.sourScale.value)
-        });
-      pesto.applyTo("tagline");
-      
-      // Apply the sauce.
-      marinara.applyTo("sauce",1).onComplete(function(element,flavors,browser) {
-        pesto.pour(1);
-      }).pour(1);
-      
+      taglineSauce.delay(2).putOn("tagline");
     }
   </script>
 </body>

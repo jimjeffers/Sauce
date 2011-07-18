@@ -6,50 +6,170 @@ DISCLAIMER: Software provided as is with no warranty of any type.
 Don't do bad things with this :)
 ###
 
-class @Ingredient
+# Managed Element:
+# -------------------------------------------------
+# Serves as an abstracted object so that it's simple to store
+# some proprietary values on the element.
+class @ManagedElement
+  constructor: (elementID) ->
+    @source   = document.getElementById(elementID)
+    @opacity  = 1
+    @x        = 0
+    @y        = 0
+    @z        = 0
+    @scaleX   = 1
+    @scaleY   = 1
+    @scaleZ   = 1
+    @rotate   = 0
+    @rotateX  = 0
+    @rotateY  = 0
+    @rotateZ  = 0
+    @scale    = 1
+    this
+
+# Rules:
+# -------------------------------------------------
+# A rule is an abstraction of a CSS property and a tween.
+# Calling valueAtElement calculates the rules proposed value
+# in the animation as well as its velocity.
+class @Rule
   constructor: (params={}) ->
-    # Translating:
-    # Skip any parameters you don't need to adjust.
-    # translate3D used by default if available.
-    @x          = params.x          || null
-    @y          = params.y          || null
-    @z          = params.z          || null
+    @equation   = params.equation   || null
+    @startFrame = 0
+    @endFrame   = 100
     
-    # Scaling:
-    # Just set scale if you want to do a uniform
-    # scale. 3D Scaling will be used no matter what
-    # if available so no need to set @scaleZ to 0.
-    @scale      = params.scale      || null
-    @scaleX     = params.scaleX     || null
-    @scaleY     = params.scaleY     || null
-    @scaleZ     = params.scaleZ     || null
-    
-    # Rotating:
-    # Just set @rotate if you want to do a 
-    # standard rotation.
-    @rotate     = params.rotate     || null
-    @rotateX    = params.rotate     || null
-    @rotateY    = params.rotate     || null
-    @rotateZ    = params.rotate     || null
-    
-    # Custom CSS allows the user to pass in standard 
-    # CSS properties.
-    @customCSS  = null
+  change: (@property) ->
+    this
   
-  setRule: (property,value) ->
-    @customCSS = {} unless @customCSS?
-    @customCSS[property] = value
+  to: (@endPoint) ->
+    console.log "Set end point to #{@endPoint}"
+    this
+  
+  from: (@startPoint) ->
+    console.log "Set end point to #{@startPoint}"
+    this
+  
+  using: (@equation) ->
+    this
+  
+  withAmplitudeOf: (@amplitude) ->
+    this
+  
+  withPeriodOf: (@period) ->
+    this
+  
+  startingOnFrame: (@startFrame) ->
+    this
+  
+  endingOnFrame: (@endFrame) ->
+    this
+  
+  valueAtFrameForElement: (keyframe,element) ->
+    if @startPoint?
+      startPoint  = @startPoint
+    else 
+      startPoint = @_getElementProp(element) 
+      
+    if @endPoint?
+      endPoint  = @endPoint
+    else 
+      endPoint = @_getElementProp(element)
     
-  css: ->
+    if keyframe < @startFrame
+      keyframe = @startFrame
+    else if keyframe > @endFrame
+      keyframe = @endFrame
+    if @period? || @amplitude?
+      @value = @equation(keyframe-@startFrame,startPoint,endPoint-startPoint,@endFrame-@startFrame,@amplitude,@period)
+    else
+      @value = @equation(keyframe-@startFrame,startPoint,endPoint-startPoint,@endFrame-@startFrame)
+    
+    console.log "@equation(#{keyframe}-#{@startFrame},#{startPoint},#{endPoint}-#{startPoint},#{@endFrame}-#{@startFrame}) returning a value of #{@value}"
+    
+    @velocity = Math.abs(@value-@lastResult)
+    @lastResult = @value
+  
+  # Private 
+  # ===================================
+    
+  _getElementProp: (element) ->
+    element[@property]
+
+# Ingredient:
+# -------------------------------------------------
+# Serves as a controller for generating CSS from configured
+# rules.
+class @Ingredient
+  @ROTATE_PROP            = "rotate"
+  @SCALE_PROP             = "scale"
+  @TRANSLATE_PROPS        = ["x","y","z"]
+  @PRECISE_SCALE_PROPS    = ["scaleX","scaleY","scaleZ"]
+  @PRECISE_ROTATE_PROPS   = ["rotateX","rotateY","rotateZ"]
+  @TRANSFORM_PROPS        = "#{@TRANSLATE_PROPS.join(",")},#{[@SCALE_PROP,@ROTATE_PROP].join(",")},#{@PRECISE_SCALE_PROPS.join(",")},#{@PRECISE_ROTATE_PROPS.join(",")}".split(",")
+  
+  constructor: ->
+    @rules    = {}
+    @element  = null
+    @keyframe = 0
+    
+  change: (property) ->
+    @rules[property] = new Rule().change(property)
+    @rules[property]
+  
+  valueOf: (property) ->
+    if (property = @rules[property])?
+      return property.valueAtFrameForElement(@keyframe,@element)
+    null
+  
+  transformRule: ->
+    # Let's do the hard stuff. If the user didn't use any settings
+    # requiring a transform we bypass this.
+    if @_needsTransform() and @element? and @keyframe?
+      transform = ""
+      # 3D Transforms:
+      # The preferred method even if all of our transforms are actually 2D.
+      # We use 3D transforms to gain GPU accelerated animations.
+      if Sauce.TRANSFORMS3D?
+        if @_needsTranslate()
+          transform += "translate3d(#{(@valueOf("x") || 0)}px,#{(@valueOf("y") || 0)}px,#{(@valueOf("z") || 0)}px)"
+      
+        if @_needsPrecisionScale()
+          transform += "scale3d(#{@valueOf("scaleX") || 1},#{@valueOf("scaleY") || 1},#{@valueOf("scaleZ") || 0})"
+        else if @_needsUniformScale()
+          transform += "scale3d(#{@valueOf("scale")},#{@valueOf("scale")},#{@valueOf("scale")})"
+      
+        if @_needsRotateIn3D()
+          transform += "rotate3d(#{(@valueOf("rotateX") || 0)}px,#{(@valueOf("rotateY") || 0)}px,#{(@valueOf("rotateZ") || 0)}px,#{@valueOf("rotate")}deg)"
+        else if @_needsRotate()
+          transform += "rotate(#{@valueOf("rotate")}deg)"
+        
+      # 2D Transforms:    
+      # We use 2D transforms if available and 3D weren't supported.
+      else if Sauce.TRANSFORMS?
+        if @_needsTranslate()
+          transform += "translate(#{(@valueOf("x") || 0)}px,#{(@valueOf("y") || 0)}px)"
+        if @_needsUniformScale()?
+          transform += "scale(#{@valueOf("scale")},#{@valueOf("scale")})"
+        if @_needsRotate()?
+          transform += "rotate(#{@valueOf("rotate")}deg)"
+    
+    transform || false
+  
+  css: (@keyframe) ->
     # We'll use string concatenation since it's more performant
     # then Array.join()
     css = ""
-    
+
     # Handle explicit CSS:
-    if @customCSS?
-      for property,value of @customCSS
-        css += "#{property}: #{value};"
-      
+    if @rules?
+      for property,rule of @rules
+        shouldGenerate = true
+        for proprietaryProperty in Ingredient.TRANSFORM_PROPS
+          shouldGenerate = false if property == proprietaryProperty
+        rule.valueAtFrameForElement(@keyframe,@element)
+        if shouldGenerate
+          css += "#{property}: #{value};"
+
     # If no transforms were available we only support
     # animating the top and left properties of the object.
     # But to be honest.. it's doubtful CSS Animation will
@@ -60,118 +180,102 @@ class @Ingredient
       css += "top:#{@y};" if @y?
     else
       css += "-#{Sauce.BROWSER_PREFIX}-transform: #{transform};" if (transform = @transformRule())?
-      
+
     # Assemble any explicit CSS... coming soon. For now just return.
     # TODO: Implement a method for setting and building any other 
     # CSS properties on the object.
     css
+ 
+  # Private 
+  # ===================================
     
-  transformRule: ->
-    # Let's do the hard stuff. If the user didn't use any settings
-    # requiring a transform we bypass this.
-    if @x? or @y? or @z? or @scale? or @rotate?
-      transform = ""
-      # 3D Transforms:
-      # The preferred method even if all of our transforms are actually 2D.
-      # We use 3D transforms to gain GPU accelerated animations.
-      if Sauce.TRANSFORMS3D?
-        if @x? or @y? or @z?
-          transform += "translate3d(#{(@x || 0)}px,#{(@y || 0)}px,#{(@z || 0)}px)"
-      
-        if @scaleX? or @scaleY? or @scaleZ
-          transform += "scale3d(#{@scaleX || 1},#{@scaleY || 1},#{@scaleZ || 0})"
-        else if @scale?
-          transform += "scale3d(#{@scale},#{@scale},#{@scale})"
-      
-        if @rotateX? or @rotateY? or @rotateZ?
-          transform += "rotate3d(#{(@x || 0)}px,#{(@y || 0)}px,#{(@z || 0)}px,#{@rotate}deg)"
-        else if @rotate?
-          transform += "rotate(#{@rotate}deg)"
-        
-      # 2D Transforms:    
-      # We use 2D transforms if available and 3D weren't supported.
-      else if Sauce.TRANSFORMS?
-        if @x? or @y?
-          transform += "translate(#{(@x || 0)}px,#{(@y || 0)}px)"
-        if @scale?
-          transform += "scale(#{@scale},#{@scale})"
-        if @rotate?
-          transform += "rotate(#{@rotate}deg)"
-    
-    transform || false
-      
-class @Flavor
-  constructor: (name,params={}) ->
-    @name       = name
-    @from       = params.from       || 0
-    @to         = params.to         || 0
-    @equation   = params.equation   || null
-    @startFrame = params.startFrame || 0
-    @endFrame   = params.endFrame   || 100
-    @amplitude  = params.amplitude  || null
-    @period     = params.period     || null
-    @velocity   = 0
-    @lastResult = 0
-    @value      = 0
-    
-  compute: (keyframe) ->
-    if keyframe < @startFrame
-      keyframe = @startFrame
-    else if keyframe > @endFrame
-      keyframe = @endFrame
-    if @period? || @amplitude?
-      @value = @equation(keyframe-@startFrame,@from,@to-@from,@endFrame-@startFrame,@amplitude,@period)
-    else
-      @value = @equation(keyframe-@startFrame,@from,@to-@from,@endFrame-@startFrame)
-    @velocity = Math.abs(@value-@lastResult)
-    @lastResult = @value
+  _needsTransform: ->
+    @_checkProps ["x","y","z","scaleX","scaleY","scaleZ","scale","rotate"]
+
+  _needsTranslate: ->
+    @_checkProps Ingredient.TRANSLATE_PROPS
+
+  _needsPrecisionScale: ->
+    @_checkProps Ingredient.PRECISE_SCALE_PROPS
+
+  _needsUniformScale: ->
+    @rules[Ingredient.SCALE_PROP]?
+
+  _needsRotateIn3D: ->
+    @_checkProps Ingredient.PRECISE_ROTATE_PROPS
+
+  _needsRotate: ->
+    @rules[Ingredient.ROTATE_PROP]?
+
+  _checkProps: (properties) ->
+    for property in properties
+      return true if @rules[property]?
+    false
 
 # The Sauce:
 # -------------------------------------------------
 # The sauce is the main controller object that coordinates 
 # the flavors (eases) and owns an ingredient (css abstraction).
 class @Sauce
+  # Every animation we generate will need a unique ID.
+  @_ANIMATION_ID = 0
+  # Increments the private Animation ID constant.
+  @animationID: ->
+    @_ANIMATION_ID += 1
+    
   constructor: (params={}) ->
     # Get the browser capabilities if we haven't done so yet.
     Sauce.getBrowserCapabilities() unless Sauce.BROWSER_PREFIX?
     
-    @name             = params.name           || "ease_#{Sauce.animationID()}_#{new Date().getTime()}"
-    @stylesheet       = params.stylesheet     || Sauce.STYLESHEET
-    @spoon            = params.spoon          || (flavors) -> 0
-    @keyframes        = params.keyframes      || 60
-    @animationCSS     = null
+    @stylesheet         = params.stylesheet     || Sauce.STYLESHEET
+    @spoon              = params.spoon          || (flavors) -> 0
+    @keyframes          = params.keyframes      || 60
+    @recipeFunction     = params.recipe         || null
+    @animations         = {}
+    @animationDelay     = 0
+    @animationDuration  = 1
+    @elements           = {}
     
     # The following '_xxx' properties are intended to be private.
-    @_complete        = params.complete       || (element,flavors,browser) -> false
     @_ingredient      = new Ingredient()
-    @_flavors         = {}
-    
-    if params.flavors?
-      for name,params of params.flavors
-        @addFlavor(name,params) 
   
-  # Convenience method for adding a flavor to the sauce.
-  addFlavor: (flavor,params={}) ->
-    if flavor instanceof Flavor and flavor.name?
-      @_flavors[flavor.name] = flavor
-    else
-      @_flavors[flavor] = new Flavor(flavor,params)
+  recipe: (@recipeFunction) ->
     this
-  
-  # Convenience method for adding a flavor to the sauce.
-  stirWith: (spoon) ->
-    @spoon = spoon
-    this
-  
-  # Convenience method for retrieving the current flavors.
-  flavors: -> @_flavors
   
   # Returns the interval. Represents an increment for percentages
   # in a @-keyframes CSS animation.
   interval: -> 100/@keyframes
   
+  # Convenience method for applying the complete handler.
+  onComplete: (complete) ->
+    @_complete = complete
+    this
+  
+  duration: (@animationDuration) ->
+    this
+  
+  delay: (@animationDelay) ->
+    this
+  
+  # Preps the element and generates the keyframes.
+  putOn: (id) ->
+    element = @_getOrCreateElementFromID(id)
+    @recipeFunction(@_ingredient)
+    @_createAnimation(@keyframes,id)
+    @_setAnimationOnElement(element)
+  
+  useAgainOn: (id) ->
+    element = @_getOrCreateElementFromID(id)
+    @_setAnimationOnElement(element)
+    this
+  
+  # Private 
+  # ===================================
+  
   # Generates a CSS keyframe animation.
-  create: (@keyframes=60) ->
+  _createAnimation: (@keyframes,id) ->
+    @lastUsedID = id
+    @animations[id] = "ease_#{Sauce.animationID()}_#{new Date().getTime()}"
     currentFrame = 0
     cssFrames = ""
     while currentFrame <= keyframes
@@ -181,38 +285,35 @@ class @Sauce
         frameLabel = "from"
       else if currentFrame == @keyframes
         frameLabel = "to"
-      cssFrames += " #{frameLabel} {#{@_ingredient.css()}}"
+      @_ingredient.element = @_getOrCreateElementFromID(id)
+      cssFrames += " #{frameLabel} {#{@_ingredient.css(keyframe)}}"
       currentFrame++
-    @animationCSS = "@-#{Sauce.BROWSER_PREFIX}-keyframes #{@name} {#{cssFrames}}"
+    @animationCSS = "@-#{Sauce.BROWSER_PREFIX}-keyframes #{@animations[@lastUsedID]} {#{cssFrames}}"
+    console.log @animationCSS
     @index = @stylesheet.cssRules.length
     @stylesheet.insertRule(@animationCSS, @index)
-    this
-  
-  # Convenience method for applying the complete handler.
-  onComplete: (complete) ->
-    @_complete = complete
-    this
-  
-  # Preps the element and generates the keyframes.
-  applyTo: (id) ->
-    @element = document.getElementById(id)
-    @_applyCSS(0)
-    @create(@keyframes)
-    @element.addEventListener(Sauce.CURRENT_PROPS.animationEnd, ( =>
-      @_completeHandler()
+    
+  _setAnimationOnElement: (element) ->
+    element.source.style[Sauce.CURRENT_PROPS.animationName] = @animations[@lastUsedID]
+    element.source.style[Sauce.CURRENT_PROPS.animationDelay] = "#{@animationDelay}s"
+    element.source.style[Sauce.CURRENT_PROPS.animationDuration] = "#{@animationDuration}s"
+    element.source.addEventListener(Sauce.CURRENT_PROPS.animationEnd, ( =>
+      @_completeHandler(element)
     ), false)
-    this
   
-  # Applies the animation to the object.
-  pour: (@duration=2) ->
-    @element.style[Sauce.CURRENT_PROPS.animationName] = @name
-    @element.style[Sauce.CURRENT_PROPS.animationDuration] = "#{@duration}s"
+  _getOrCreateElementFromID: (id) ->
+    if @elements[id]?
+      element = @elements[id]
+    else
+      element = new ManagedElement(id)
+      @elements[id] = element
+    element
   
   # The underscore denotes that this method should be considered PRIVATE
   # and is only to be called internally. Use onComplete() to bind
-  _completeHandler: ->
-    @_applyCSS(100)
-    @_complete(@element,@flavors,@browser)
+  _completeHandler: (element) ->
+    @_applyCSS(100,element)
+    @_complete(@element) if @_complete?
   
   _computeKeyframe: (frame) ->
     keyframe = frame * @interval()
@@ -220,20 +321,14 @@ class @Sauce
       flavor.compute(keyframe)
     @spoon(@_flavors,@_ingredient)
     return keyframe
-      
-  _applyCSS: (frame) ->
+  
+  _applyCSS: (frame,element) ->
     @_computeKeyframe(frame)
     if @_ingredient.customCSS?
       for property,value of @_ingredient.customCSS
-       @element.style[property] = value
+       element.source.style[property] = value
     if Sauce.TRANSFORMS?
-      @element.style[Sauce.CURRENT_PROPS.transform] = @_ingredient.transformRule()
-  
-  # Increments Animation ID
-  @_ANIMATION_ID = 0
-  
-  @animationID: ->
-    @_ANIMATION_ID += 1
+      element.source.style[Sauce.CURRENT_PROPS.transform] = @_ingredient.transformRule()
   
   # Browser Capability Testing:
   # -------------------------------------------------
@@ -251,11 +346,13 @@ class @Sauce
     webkit:
       animationEnd:       'webkitAnimationEnd'
       animationName:      'webkitAnimationName'
+      animationDelay:     'webkitAnimationDelay'
       animationDuration:  'webkitAnimationDuration'
       transform:          'WebkitTransform'
     moz:
       animationEnd:       'animationend'
       animationName:      'MozAnimationName'
+      animationDelay:     'webkitAnimationDelay'
       animationDuration:  'MozAnimationDuration'
       transform:          'MozTransform'
     o:
