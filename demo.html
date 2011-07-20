@@ -39,15 +39,17 @@
       var headlineSauce = new Sauce();
       headlineSauce.recipe(function(element){
         element.change("y").from(-200).using(Easie.bounceOut);
-        element.change("scale").from(0).using(Easie.circOut);
+        element.change("scale").from(0.01).using(Easie.circOut);
       });
-      headlineSauce.duration(1).delay(1).putOn("sauce");
+      headlineSauce.duration(1).delay(0.5).putOn("sauce");
       
       var taglineSauce = new Sauce();
       taglineSauce.recipe(function(element){
-        element.change("x").from(-200).using(Easie.backInOut);
+        element.change("x").from(-200).to(-10).using(Easie.backInOut);
+        element.change("opacity").from(0).using(Easie.circOut).endingOnFrame(45)
+        element.change("scale").using(element.velocity("x", function(velocity){ console.log(velocity); return 1-velocity/100; }));
       });
-      taglineSauce.delay(2).putOn("tagline");
+      taglineSauce.delay(1.25).putOn("tagline");
     }
   </script>
 </body>

@@ -26,6 +26,19 @@
     }
     return ManagedElement;
   })();
+  this.VelocityEquation = (function() {
+    function VelocityEquation(rule, equation) {
+      this.rule = rule;
+      this.equation = equation;
+      this;
+    }
+    VelocityEquation.prototype.calculateForFrame = function(keyframe) {
+      var x;
+      x = this.equation(this.rule.velocityAtKeyFrame(keyframe));
+      return x;
+    };
+    return VelocityEquation;
+  })();
   this.Rule = (function() {
     function Rule(params) {
       if (params == null) {
@@ -41,12 +54,10 @@
     };
     Rule.prototype.to = function(endPoint) {
       this.endPoint = endPoint;
-      console.log("Set end point to " + this.endPoint);
       return this;
     };
     Rule.prototype.from = function(startPoint) {
       this.startPoint = startPoint;
-      console.log("Set end point to " + this.startPoint);
       return this;
     };
     Rule.prototype.using = function(equation) {
@@ -69,17 +80,40 @@
       this.endFrame = endFrame;
       return this;
     };
+    Rule.prototype.velocityAtKeyFrame = function(keyframe) {
+      if (keyframe === this.keyframe && keyframe !== 0 && keyframe !== 100) {
+        return this.velocity;
+      }
+      return 0;
+    };
+    Rule.prototype.isVelocityRule = function() {
+      return this.equation instanceof VelocityEquation;
+    };
     Rule.prototype.valueAtFrameForElement = function(keyframe, element) {
-      var endPoint, startPoint;
+      this.element = element;
+      if (this.keyframe !== keyframe) {
+        this.keyframe = keyframe;
+        if (this.isVelocityRule()) {
+          this.value = this.equation.calculateForFrame(this.keyframe);
+        } else {
+          this.value = this._calculateForFrame(this.keyframe);
+        }
+        this.velocity = Math.abs(this.value - this.lastResult);
+        this.lastResult = this.value;
+      }
+      return this.value;
+    };
+    Rule.prototype._calculateForFrame = function(keyframe) {
+      var endPoint, startPoint, value;
       if (this.startPoint != null) {
         startPoint = this.startPoint;
       } else {
-        startPoint = this._getElementProp(element);
+        startPoint = this._getElementProp(this.element);
       }
       if (this.endPoint != null) {
         endPoint = this.endPoint;
       } else {
-        endPoint = this._getElementProp(element);
+        endPoint = this._getElementProp(this.element);
       }
       if (keyframe < this.startFrame) {
         keyframe = this.startFrame;
@@ -87,13 +121,11 @@
         keyframe = this.endFrame;
       }
       if ((this.period != null) || (this.amplitude != null)) {
-        this.value = this.equation(keyframe - this.startFrame, startPoint, endPoint - startPoint, this.endFrame - this.startFrame, this.amplitude, this.period);
+        value = this.equation(keyframe - this.startFrame, startPoint, endPoint - startPoint, this.endFrame - this.startFrame, this.amplitude, this.period);
       } else {
-        this.value = this.equation(keyframe - this.startFrame, startPoint, endPoint - startPoint, this.endFrame - this.startFrame);
+        value = this.equation(keyframe - this.startFrame, startPoint, endPoint - startPoint, this.endFrame - this.startFrame);
       }
-      console.log("@equation(" + keyframe + "-" + this.startFrame + "," + startPoint + "," + endPoint + "-" + startPoint + "," + this.endFrame + "-" + this.startFrame + ") returning a value of " + this.value);
-      this.velocity = Math.abs(this.value - this.lastResult);
-      return this.lastResult = this.value;
+      return value;
     };
     Rule.prototype._getElementProp = function(element) {
       return element[this.property];
@@ -111,13 +143,17 @@
       this.rules = {};
       this.element = null;
       this.keyframe = 0;
+      this.utilizingVelocity = false;
     }
     Ingredient.prototype.change = function(property) {
       this.rules[property] = new Rule().change(property);
       return this.rules[property];
     };
+    Ingredient.prototype.velocity = function(property, equationFunction) {
+      return new VelocityEquation(this.rules[property], equationFunction);
+    };
     Ingredient.prototype.valueOf = function(property) {
-      if ((property = this.rules[property]) != null) {
+      if (((property = this.rules[property]) != null) && !(property.isVelocityRule() && !this.utilizingVelocity)) {
         return property.valueAtFrameForElement(this.keyframe, this.element);
       }
       return null;
@@ -133,22 +169,22 @@
           if (this._needsPrecisionScale()) {
             transform += "scale3d(" + (this.valueOf("scaleX") || 1) + "," + (this.valueOf("scaleY") || 1) + "," + (this.valueOf("scaleZ") || 0) + ")";
           } else if (this._needsUniformScale()) {
-            transform += "scale3d(" + (this.valueOf("scale")) + "," + (this.valueOf("scale")) + "," + (this.valueOf("scale")) + ")";
+            transform += "scale3d(" + (this.valueOf("scale") || 1) + "," + (this.valueOf("scale") || 1) + "," + (this.valueOf("scale") || 0) + ")";
           }
           if (this._needsRotateIn3D()) {
-            transform += "rotate3d(" + (this.valueOf("rotateX") || 0) + "px," + (this.valueOf("rotateY") || 0) + "px," + (this.valueOf("rotateZ") || 0) + "px," + (this.valueOf("rotate")) + "deg)";
+            transform += "rotate3d(" + (this.valueOf("rotateX") || 0) + "px," + (this.valueOf("rotateY") || 0) + "px," + (this.valueOf("rotateZ") || 0) + "px," + (this.valueOf("rotate") || 0) + "deg)";
           } else if (this._needsRotate()) {
-            transform += "rotate(" + (this.valueOf("rotate")) + "deg)";
+            transform += "rotate(" + (this.valueOf("rotate") || 0) + "deg)";
           }
         } else if (Sauce.TRANSFORMS != null) {
           if (this._needsTranslate()) {
             transform += "translate(" + (this.valueOf("x") || 0) + "px," + (this.valueOf("y") || 0) + "px)";
           }
           if (this._needsUniformScale() != null) {
-            transform += "scale(" + (this.valueOf("scale")) + "," + (this.valueOf("scale")) + ")";
+            transform += "scale(" + (this.valueOf("scale") || 1) + "," + (this.valueOf("scale") || 1) + ")";
           }
           if (this._needsRotate() != null) {
-            transform += "rotate(" + (this.valueOf("rotate")) + "deg)";
+            transform += "rotate(" + (this.valueOf("rotate") || 0) + "deg)";
           }
         }
       }
@@ -172,16 +208,16 @@
           }
           rule.valueAtFrameForElement(this.keyframe, this.element);
           if (shouldGenerate) {
-            css += "" + property + ": " + value + ";";
+            css += "" + property + ": " + rule.value + ";";
           }
         }
       }
       if (!(Sauce.TRANSFORMS != null)) {
-        if (this.x != null) {
-          css += "left:" + this.x + ";";
+        if (this.valueOf("x") != null) {
+          css += "left:" + (this.valueOf("x")) + "px;";
         }
-        if (this.y != null) {
-          css += "top:" + this.y + ";";
+        if (this.valueOf("y") != null) {
+          css += "top:" + (this.valueOf("y")) + "px;";
         }
       } else {
         if ((transform = this.transformRule()) != null) {
@@ -233,9 +269,6 @@
         Sauce.getBrowserCapabilities();
       }
       this.stylesheet = params.stylesheet || Sauce.STYLESHEET;
-      this.spoon = params.spoon || function(flavors) {
-        return 0;
-      };
       this.keyframes = params.keyframes || 60;
       this.recipeFunction = params.recipe || null;
       this.animations = {};
@@ -243,6 +276,7 @@
       this.animationDuration = 1;
       this.elements = {};
       this._ingredient = new Ingredient();
+      this._complete = params.complete || null;
     }
     Sauce.prototype.recipe = function(recipeFunction) {
       this.recipeFunction = recipeFunction;
@@ -268,6 +302,7 @@
       element = this._getOrCreateElementFromID(id);
       this.recipeFunction(this._ingredient);
       this._createAnimation(this.keyframes, id);
+      this._applyCSS(0, element);
       return this._setAnimationOnElement(element);
     };
     Sauce.prototype.useAgainOn = function(id) {
@@ -283,6 +318,7 @@
       this.animations[id] = "ease_" + (Sauce.animationID()) + "_" + (new Date().getTime());
       currentFrame = 0;
       cssFrames = "";
+      this._ingredient.utilizingVelocity = true;
       while (currentFrame <= keyframes) {
         keyframe = this._computeKeyframe(currentFrame);
         frameLabel = "" + keyframe + "%";
@@ -296,6 +332,7 @@
         currentFrame++;
       }
       this.animationCSS = "@-" + Sauce.BROWSER_PREFIX + "-keyframes " + this.animations[this.lastUsedID] + " {" + cssFrames + "}";
+      this._ingredient.utilizingVelocity = false;
       console.log(this.animationCSS);
       this.index = this.stylesheet.cssRules.length;
       return this.stylesheet.insertRule(this.animationCSS, this.index);
@@ -325,24 +362,16 @@
       }
     };
     Sauce.prototype._computeKeyframe = function(frame) {
-      var flavor, keyframe, name, _ref;
-      keyframe = frame * this.interval();
-      _ref = this._flavors;
-      for (name in _ref) {
-        flavor = _ref[name];
-        flavor.compute(keyframe);
-      }
-      this.spoon(this._flavors, this._ingredient);
-      return keyframe;
+      return frame * this.interval();
     };
     Sauce.prototype._applyCSS = function(frame, element) {
-      var property, value, _ref;
-      this._computeKeyframe(frame);
-      if (this._ingredient.customCSS != null) {
-        _ref = this._ingredient.customCSS;
+      var property, rule, _ref;
+      this._ingredient.css(this._computeKeyframe(frame));
+      if (this._ingredient.rules != null) {
+        _ref = this._ingredient.rules;
         for (property in _ref) {
-          value = _ref[property];
-          element.source.style[property] = value;
+          rule = _ref[property];
+          element.source.style[property] = rule.value;
         }
       }
       if (Sauce.TRANSFORMS != null) {

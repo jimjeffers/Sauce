@@ -27,6 +27,16 @@ class @ManagedElement
     @scale    = 1
     this
 
+
+# Velocity:
+# -------------------------------------------------
+class @VelocityEquation
+  constructor: (@rule,@equation) -> this
+  
+  calculateForFrame: (keyframe) ->
+    x = @equation(@rule.velocityAtKeyFrame(keyframe))
+    x
+    
 # Rules:
 # -------------------------------------------------
 # A rule is an abstraction of a CSS property and a tween.
@@ -42,11 +52,9 @@ class @Rule
     this
   
   to: (@endPoint) ->
-    console.log "Set end point to #{@endPoint}"
     this
   
   from: (@startPoint) ->
-    console.log "Set end point to #{@startPoint}"
     this
   
   using: (@equation) ->
@@ -64,33 +72,49 @@ class @Rule
   endingOnFrame: (@endFrame) ->
     this
   
-  valueAtFrameForElement: (keyframe,element) ->
+  velocityAtKeyFrame: (keyframe) ->
+    if keyframe == @keyframe and keyframe != 0 and keyframe != 100
+      return @velocity
+    0
+  
+  isVelocityRule: ->
+    @equation instanceof VelocityEquation
+  
+  valueAtFrameForElement: (keyframe,@element) ->
+    if @keyframe != keyframe
+      @keyframe = keyframe
+      if @isVelocityRule()
+        @value = @equation.calculateForFrame(@keyframe)
+      else
+        @value = @_calculateForFrame(@keyframe)
+    
+      @velocity = Math.abs(@value-@lastResult)
+      @lastResult = @value
+    @value
+  
+  # Private 
+  # ===================================
+  
+  _calculateForFrame: (keyframe) ->
     if @startPoint?
       startPoint  = @startPoint
     else 
-      startPoint = @_getElementProp(element) 
-      
+      startPoint = @_getElementProp(@element) 
+    
     if @endPoint?
       endPoint  = @endPoint
     else 
-      endPoint = @_getElementProp(element)
-    
+      endPoint = @_getElementProp(@element)
+  
     if keyframe < @startFrame
       keyframe = @startFrame
     else if keyframe > @endFrame
       keyframe = @endFrame
     if @period? || @amplitude?
-      @value = @equation(keyframe-@startFrame,startPoint,endPoint-startPoint,@endFrame-@startFrame,@amplitude,@period)
+      value = @equation(keyframe-@startFrame,startPoint,endPoint-startPoint,@endFrame-@startFrame,@amplitude,@period)
     else
-      @value = @equation(keyframe-@startFrame,startPoint,endPoint-startPoint,@endFrame-@startFrame)
-    
-    console.log "@equation(#{keyframe}-#{@startFrame},#{startPoint},#{endPoint}-#{startPoint},#{@endFrame}-#{@startFrame}) returning a value of #{@value}"
-    
-    @velocity = Math.abs(@value-@lastResult)
-    @lastResult = @value
-  
-  # Private 
-  # ===================================
+      value = @equation(keyframe-@startFrame,startPoint,endPoint-startPoint,@endFrame-@startFrame)
+    value
     
   _getElementProp: (element) ->
     element[@property]
@@ -108,16 +132,20 @@ class @Ingredient
   @TRANSFORM_PROPS        = "#{@TRANSLATE_PROPS.join(",")},#{[@SCALE_PROP,@ROTATE_PROP].join(",")},#{@PRECISE_SCALE_PROPS.join(",")},#{@PRECISE_ROTATE_PROPS.join(",")}".split(",")
   
   constructor: ->
-    @rules    = {}
-    @element  = null
-    @keyframe = 0
+    @rules              = {}
+    @element            = null
+    @keyframe           = 0
+    @utilizingVelocity  = false
     
   change: (property) ->
     @rules[property] = new Rule().change(property)
     @rules[property]
   
+  velocity: (property, equationFunction) ->
+    new VelocityEquation(@rules[property],equationFunction)
+    
   valueOf: (property) ->
-    if (property = @rules[property])?
+    if (property = @rules[property])? and !(property.isVelocityRule() and !@utilizingVelocity)
       return property.valueAtFrameForElement(@keyframe,@element)
     null
   
@@ -136,12 +164,12 @@ class @Ingredient
         if @_needsPrecisionScale()
           transform += "scale3d(#{@valueOf("scaleX") || 1},#{@valueOf("scaleY") || 1},#{@valueOf("scaleZ") || 0})"
         else if @_needsUniformScale()
-          transform += "scale3d(#{@valueOf("scale")},#{@valueOf("scale")},#{@valueOf("scale")})"
+          transform += "scale3d(#{@valueOf("scale") || 1},#{@valueOf("scale") || 1},#{@valueOf("scale") || 0})"
       
         if @_needsRotateIn3D()
-          transform += "rotate3d(#{(@valueOf("rotateX") || 0)}px,#{(@valueOf("rotateY") || 0)}px,#{(@valueOf("rotateZ") || 0)}px,#{@valueOf("rotate")}deg)"
+          transform += "rotate3d(#{(@valueOf("rotateX") || 0)}px,#{(@valueOf("rotateY") || 0)}px,#{(@valueOf("rotateZ") || 0)}px,#{@valueOf("rotate") || 0}deg)"
         else if @_needsRotate()
-          transform += "rotate(#{@valueOf("rotate")}deg)"
+          transform += "rotate(#{@valueOf("rotate") || 0}deg)"
         
       # 2D Transforms:    
       # We use 2D transforms if available and 3D weren't supported.
@@ -149,9 +177,9 @@ class @Ingredient
         if @_needsTranslate()
           transform += "translate(#{(@valueOf("x") || 0)}px,#{(@valueOf("y") || 0)}px)"
         if @_needsUniformScale()?
-          transform += "scale(#{@valueOf("scale")},#{@valueOf("scale")})"
+          transform += "scale(#{@valueOf("scale") || 1},#{@valueOf("scale") || 1})"
         if @_needsRotate()?
-          transform += "rotate(#{@valueOf("rotate")}deg)"
+          transform += "rotate(#{@valueOf("rotate") || 0}deg)"
     
     transform || false
   
@@ -168,7 +196,7 @@ class @Ingredient
           shouldGenerate = false if property == proprietaryProperty
         rule.valueAtFrameForElement(@keyframe,@element)
         if shouldGenerate
-          css += "#{property}: #{value};"
+          css += "#{property}: #{rule.value};"
 
     # If no transforms were available we only support
     # animating the top and left properties of the object.
@@ -176,14 +204,11 @@ class @Ingredient
     # even be available on any browsers that don't support
     # transformations.
     if !Sauce.TRANSFORMS?
-      css += "left:#{@x};" if @x?
-      css += "top:#{@y};" if @y?
+      css += "left:#{@valueOf("x")}px;" if @valueOf("x")?
+      css += "top:#{@valueOf("y")}px;" if @valueOf("y")?
     else
       css += "-#{Sauce.BROWSER_PREFIX}-transform: #{transform};" if (transform = @transformRule())?
-
-    # Assemble any explicit CSS... coming soon. For now just return.
-    # TODO: Implement a method for setting and building any other 
-    # CSS properties on the object.
+      
     css
  
   # Private 
@@ -228,7 +253,6 @@ class @Sauce
     Sauce.getBrowserCapabilities() unless Sauce.BROWSER_PREFIX?
     
     @stylesheet         = params.stylesheet     || Sauce.STYLESHEET
-    @spoon              = params.spoon          || (flavors) -> 0
     @keyframes          = params.keyframes      || 60
     @recipeFunction     = params.recipe         || null
     @animations         = {}
@@ -238,6 +262,7 @@ class @Sauce
     
     # The following '_xxx' properties are intended to be private.
     @_ingredient      = new Ingredient()
+    @_complete        = params.complete         || null
   
   recipe: (@recipeFunction) ->
     this
@@ -262,6 +287,7 @@ class @Sauce
     element = @_getOrCreateElementFromID(id)
     @recipeFunction(@_ingredient)
     @_createAnimation(@keyframes,id)
+    @_applyCSS(0,element)
     @_setAnimationOnElement(element)
   
   useAgainOn: (id) ->
@@ -278,6 +304,7 @@ class @Sauce
     @animations[id] = "ease_#{Sauce.animationID()}_#{new Date().getTime()}"
     currentFrame = 0
     cssFrames = ""
+    @_ingredient.utilizingVelocity = true
     while currentFrame <= keyframes
       keyframe = @_computeKeyframe(currentFrame)
       frameLabel = "#{keyframe}%"
@@ -289,6 +316,7 @@ class @Sauce
       cssFrames += " #{frameLabel} {#{@_ingredient.css(keyframe)}}"
       currentFrame++
     @animationCSS = "@-#{Sauce.BROWSER_PREFIX}-keyframes #{@animations[@lastUsedID]} {#{cssFrames}}"
+    @_ingredient.utilizingVelocity = false
     console.log @animationCSS
     @index = @stylesheet.cssRules.length
     @stylesheet.insertRule(@animationCSS, @index)
@@ -316,17 +344,13 @@ class @Sauce
     @_complete(@element) if @_complete?
   
   _computeKeyframe: (frame) ->
-    keyframe = frame * @interval()
-    for name, flavor of @_flavors
-      flavor.compute(keyframe)
-    @spoon(@_flavors,@_ingredient)
-    return keyframe
+    frame * @interval()
   
   _applyCSS: (frame,element) ->
-    @_computeKeyframe(frame)
-    if @_ingredient.customCSS?
-      for property,value of @_ingredient.customCSS
-       element.source.style[property] = value
+    @_ingredient.css(@_computeKeyframe(frame))
+    if @_ingredient.rules?
+      for property,rule of @_ingredient.rules
+       element.source.style[property] = rule.value
     if Sauce.TRANSFORMS?
       element.source.style[Sauce.CURRENT_PROPS.transform] = @_ingredient.transformRule()
   
