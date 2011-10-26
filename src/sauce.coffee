@@ -317,7 +317,6 @@ class @Sauce
       currentFrame++
     @animationCSS = "@-#{Sauce.BROWSER_PREFIX}-keyframes #{@animations[@lastUsedID]} {#{cssFrames}}"
     @_ingredient.utilizingVelocity = false
-    console.log @animationCSS
     @index = @stylesheet.cssRules.length
     @stylesheet.insertRule(@animationCSS, @index)
     
@@ -342,6 +341,8 @@ class @Sauce
   _completeHandler: (element) ->
     @_applyCSS(100,element)
     @_complete(@element) if @_complete?
+    @_complete = null
+    @delay = 0
   
   _computeKeyframe: (frame) ->
     frame * @interval()
@@ -369,9 +370,9 @@ class @Sauce
   @BROWSER_PROPS:
     webkit:
       animationEnd:       'webkitAnimationEnd'
-      animationName:      'webkitAnimationName'
-      animationDelay:     'webkitAnimationDelay'
-      animationDuration:  'webkitAnimationDuration'
+      animationName:      'WebkitAnimationName'
+      animationDelay:     'WebkitAnimationDelay'
+      animationDuration:  'WebkitAnimationDuration'
       transform:          'WebkitTransform'
     moz:
       animationEnd:       'animationend'
@@ -384,7 +385,7 @@ class @Sauce
       animationName:      null
       animationDuration:  null
       transform:          'OTransform'
-    msie:
+    ms:
       animationEnd:       null
       animationName:      null
       animationDuration:  null
@@ -403,7 +404,7 @@ class @Sauce
         condition:  /webkit/
       o:    
         condition:  /opera/
-      ie:
+      ms:
         condition:  /msie/
         negator:    /opera/
       moz:  
@@ -419,14 +420,11 @@ class @Sauce
     
     # Get last useable stylesheet:
     document.styleSheets[document.styleSheets.length-1];
-    index = document.styleSheets.length
-    while index > 1 and !@STYLESHEET?
+    for stylesheet in document.styleSheets
       try
-        stylesheet = document.styleSheets[index-1]
         @STYLESHEET = stylesheet if stylesheet.cssRules?
       catch error
         console.log "Problem selecting stylesheet: #{error}"
-      index -= 1
     
     # Transform Types:
     # -------------------------------------------------

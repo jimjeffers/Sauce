@@ -333,7 +333,6 @@
       }
       this.animationCSS = "@-" + Sauce.BROWSER_PREFIX + "-keyframes " + this.animations[this.lastUsedID] + " {" + cssFrames + "}";
       this._ingredient.utilizingVelocity = false;
-      console.log(this.animationCSS);
       this.index = this.stylesheet.cssRules.length;
       return this.stylesheet.insertRule(this.animationCSS, this.index);
     };
@@ -358,8 +357,10 @@
     Sauce.prototype._completeHandler = function(element) {
       this._applyCSS(100, element);
       if (this._complete != null) {
-        return this._complete(this.element);
+        this._complete(this.element);
       }
+      this._complete = null;
+      return this.delay = 0;
     };
     Sauce.prototype._computeKeyframe = function(frame) {
       return frame * this.interval();
@@ -386,9 +387,9 @@
     Sauce.BROWSER_PROPS = {
       webkit: {
         animationEnd: 'webkitAnimationEnd',
-        animationName: 'webkitAnimationName',
-        animationDelay: 'webkitAnimationDelay',
-        animationDuration: 'webkitAnimationDuration',
+        animationName: 'WebkitAnimationName',
+        animationDelay: 'WebkitAnimationDelay',
+        animationDuration: 'WebkitAnimationDuration',
         transform: 'WebkitTransform'
       },
       moz: {
@@ -404,7 +405,7 @@
         animationDuration: null,
         transform: 'OTransform'
       },
-      msie: {
+      ms: {
         animationEnd: null,
         animationName: null,
         animationDuration: null,
@@ -412,7 +413,7 @@
       }
     };
     Sauce.getBrowserCapabilities = function() {
-      var features, index, name, options, prefix, prefixes, properties, property, style, stylesheet, userAgent, _results;
+      var features, name, options, prefix, prefixes, properties, property, style, stylesheet, userAgent, _i, _len, _ref, _results;
       prefixes = {
         webkit: {
           condition: /webkit/
@@ -420,7 +421,7 @@
         o: {
           condition: /opera/
         },
-        ie: {
+        ms: {
           condition: /msie/,
           negator: /opera/
         },
@@ -440,17 +441,16 @@
       }
       this.CURRENT_PROPS = this.BROWSER_PROPS[this.BROWSER_PREFIX];
       document.styleSheets[document.styleSheets.length - 1];
-      index = document.styleSheets.length;
-      while (index > 1 && !(this.STYLESHEET != null)) {
+      _ref = document.styleSheets;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        stylesheet = _ref[_i];
         try {
-          stylesheet = document.styleSheets[index - 1];
           if (stylesheet.cssRules != null) {
             this.STYLESHEET = stylesheet;
           }
         } catch (error) {
           console.log("Problem selecting stylesheet: " + error);
         }
-        index -= 1;
       }
       style = document.createElement('test').style;
       features = {
@@ -461,10 +461,10 @@
       for (name in features) {
         properties = features[name];
         _results.push((function() {
-          var _i, _len, _results2;
+          var _j, _len2, _results2;
           _results2 = [];
-          for (_i = 0, _len = properties.length; _i < _len; _i++) {
-            property = properties[_i];
+          for (_j = 0, _len2 = properties.length; _j < _len2; _j++) {
+            property = properties[_j];
             _results2.push(style[property] !== void 0 ? (name === "transform3d" ? this.TRANSFORMS3D = true : void 0, name === "transform" ? this.TRANSFORMS = true : void 0) : void 0);
           }
           return _results2;
