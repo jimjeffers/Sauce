@@ -113,6 +113,7 @@
     text-align: center;
     text-shadow: #d12727 1px 1px, #d12727 2px 2px, #d12727 3px 3px, #d12727 4px 4px, #d12727 5px 5px, #d12727 6px 6px, #d12727 7px 7px;
     top: 200px;
+    z-index: 2;
   }
   
   h2#tagline {
@@ -125,8 +126,14 @@
     right: auto;
     text-shadow: #5ab930 1px 1px, #5ab930 2px 2px, #5ab930 3px 3px;
     top: 400px;
+    z-index: 2;
   }
-
+/* =BODY
+   ------------------------------------------------------ */
+   body {
+      background: #fff;
+   }
+   
 /*  =TEST
   ------------------------------------------------------ */
   #test {
@@ -146,3 +153,33 @@
     width: 500px;
     opacity:1; 
   }
+ 
+  #branding {
+     position: absolute;
+     z-index: 0;
+  }
+  
+ /* =COLORS
+   ------------------------------------------------------ */
+   #red,#blue {
+      background: #f00;
+      height: 100px;
+      width: 100px;
+   }
+   
+   #blue {
+      background: #00f;
+   }
+
+/* =BOX
+   ------------------------------------------------------ */
+   .box,
+   .altBox {
+      background: rgba(255,0,0,.1);
+      display: block;
+      position: absolute;
+   }
+   
+   .altBox {
+      background: rgba(255,255,255,0.25);
+   }

@@ -7,21 +7,24 @@
   Don't do bad things with this :)
   */
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+  Array.prototype.include = function(matchedItem) {
+    return this.indexOf(matchedItem) >= 0;
+  };
   this.ManagedElement = (function() {
     function ManagedElement(elementID) {
       this.source = document.getElementById(elementID);
-      this.opacity = 1;
-      this.x = 0;
-      this.y = 0;
-      this.z = 0;
-      this.scaleX = 1;
-      this.scaleY = 1;
-      this.scaleZ = 1;
-      this.rotate = 0;
-      this.rotateX = 0;
-      this.rotateY = 0;
-      this.rotateZ = 0;
-      this.scale = 1;
+      this.opacity = this.source.getAttribute("data-opacity") || 1;
+      this.x = this.source.getAttribute("data-x") || 0;
+      this.y = this.source.getAttribute("data-y") || 0;
+      this.z = this.source.getAttribute("data-z") || 0;
+      this.scaleX = this.source.getAttribute("data-scaleX") || 1;
+      this.scaleY = this.source.getAttribute("data-scaleY") || 1;
+      this.scaleZ = this.source.getAttribute("data-scaleZ") || 1;
+      this.rotate = this.source.getAttribute("data-rotate") || 0;
+      this.rotateX = this.source.getAttribute("data-rotateX") || 0;
+      this.rotateY = this.source.getAttribute("data-rotateY") || 0;
+      this.rotateZ = this.source.getAttribute("data-rotateZ") || 0;
+      this.scale = this.source.getAttribute("data-scale") || 1;
       this;
     }
     return ManagedElement;
@@ -44,7 +47,7 @@
       if (params == null) {
         params = {};
       }
-      this.equation = params.equation || null;
+      this.equation = params.equation || Easie.linearNone;
       this.startFrame = 0;
       this.endFrame = 100;
     }
@@ -54,10 +57,12 @@
     };
     Rule.prototype.to = function(endPoint) {
       this.endPoint = endPoint;
+      this.endPoint = parseFloat(this.endPoint);
       return this;
     };
     Rule.prototype.from = function(startPoint) {
       this.startPoint = startPoint;
+      this.startPoint = parseFloat(this.startPoint);
       return this;
     };
     Rule.prototype.using = function(equation) {
@@ -146,7 +151,9 @@
       this.utilizingVelocity = false;
     }
     Ingredient.prototype.change = function(property) {
-      this.rules[property] = new Rule().change(property);
+      if (this.rules[property] == null) {
+        this.rules[property] = new Rule().change(property);
+      }
       return this.rules[property];
     };
     Ingredient.prototype.velocity = function(property, equationFunction) {
@@ -274,6 +281,7 @@
       this.animations = {};
       this.animationDelay = 0;
       this.animationDuration = 1;
+      this.animaionIteration = 1;
       this.elements = {};
       this._ingredient = new Ingredient();
       this._complete = params.complete || null;
@@ -297,13 +305,25 @@
       this.animationDelay = animationDelay;
       return this;
     };
+    Sauce.prototype.iterations = function(animationIteration) {
+      this.animationIteration = animationIteration;
+      return this;
+    };
     Sauce.prototype.putOn = function(id) {
-      var element;
+      var element, property, _i, _len, _ref;
       element = this._getOrCreateElementFromID(id);
+      if (element.source.getAttribute("data-properties") != null) {
+        _ref = element.source.getAttribute("data-properties").split(",");
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          property = _ref[_i];
+          this._ingredient.change(property).from(element.source.getAttribute("data-" + property)).to(element.source.getAttribute("data-" + property));
+        }
+      }
       this.recipeFunction(this._ingredient);
       this._createAnimation(this.keyframes, id);
       this._applyCSS(0, element);
-      return this._setAnimationOnElement(element);
+      this._setAnimationOnElement(element);
+      return this;
     };
     Sauce.prototype.useAgainOn = function(id) {
       var element;
@@ -333,16 +353,19 @@
       }
       this.animationCSS = "@-" + Sauce.BROWSER_PREFIX + "-keyframes " + this.animations[this.lastUsedID] + " {" + cssFrames + "}";
       this._ingredient.utilizingVelocity = false;
-      this.index = this.stylesheet.cssRules.length;
-      return this.stylesheet.insertRule(this.animationCSS, this.index);
+      if (this.stylesheet.cssRules != null) {
+        this.index = this.stylesheet.cssRules.length;
+      }
+      return this.stylesheet.insertRule(this.animationCSS, this.index || 0);
     };
     Sauce.prototype._setAnimationOnElement = function(element) {
       element.source.style[Sauce.CURRENT_PROPS.animationName] = this.animations[this.lastUsedID];
       element.source.style[Sauce.CURRENT_PROPS.animationDelay] = "" + this.animationDelay + "s";
       element.source.style[Sauce.CURRENT_PROPS.animationDuration] = "" + this.animationDuration + "s";
-      return element.source.addEventListener(Sauce.CURRENT_PROPS.animationEnd, (__bind(function() {
+      element.source.style[Sauce.CURRENT_PROPS.animationIteration] = this.animationIteration;
+      return element.source.addEventListener(Sauce.CURRENT_PROPS.animationEnd, (this._handler = (__bind(function() {
         return this._completeHandler(element);
-      }, this)), false);
+      }, this))), false);
     };
     Sauce.prototype._getOrCreateElementFromID = function(id) {
       var element;
@@ -355,25 +378,35 @@
       return element;
     };
     Sauce.prototype._completeHandler = function(element) {
+      element.source.removeEventListener(Sauce.CURRENT_PROPS.animationEnd, this._handler);
       this._applyCSS(100, element);
       if (this._complete != null) {
-        this._complete(this.element);
+        this._complete();
       }
-      this._complete = null;
-      return this.delay = 0;
+      return this._complete = null;
     };
     Sauce.prototype._computeKeyframe = function(frame) {
       return frame * this.interval();
     };
     Sauce.prototype._applyCSS = function(frame, element) {
-      var property, rule, _ref;
+      var property, rule, trackedProperties, _ref;
       this._ingredient.css(this._computeKeyframe(frame));
       if (this._ingredient.rules != null) {
+        if (element.source.getAttribute("data-properties") != null) {
+          trackedProperties = element.source.getAttribute("data-properties").split(",");
+        } else {
+          trackedProperties = [];
+        }
         _ref = this._ingredient.rules;
         for (property in _ref) {
           rule = _ref[property];
           element.source.style[property] = rule.value;
+          element.source.setAttribute("data-" + property, rule.value);
+          if (!trackedProperties.include(property)) {
+            trackedProperties.push(property);
+          }
         }
+        element.source.setAttribute("data-properties", trackedProperties.join(","));
       }
       if (Sauce.TRANSFORMS != null) {
         return element.source.style[Sauce.CURRENT_PROPS.transform] = this._ingredient.transformRule();
@@ -390,6 +423,7 @@
         animationName: 'WebkitAnimationName',
         animationDelay: 'WebkitAnimationDelay',
         animationDuration: 'WebkitAnimationDuration',
+        animationIteration: 'WebkitAnimationIterationCount',
         transform: 'WebkitTransform'
       },
       moz: {
@@ -397,18 +431,21 @@
         animationName: 'MozAnimationName',
         animationDelay: 'webkitAnimationDelay',
         animationDuration: 'MozAnimationDuration',
+        animationIteration: 'MozAnimationIterationCount',
         transform: 'MozTransform'
       },
       o: {
         animationEnd: null,
         animationName: null,
         animationDuration: null,
+        animationIteration: null,
         transform: 'OTransform'
       },
       ms: {
         animationEnd: null,
         animationName: null,
         animationDuration: null,
+        animationIteration: null,
         transform: 'msTransform'
       }
     };
@@ -440,14 +477,11 @@
         }
       }
       this.CURRENT_PROPS = this.BROWSER_PROPS[this.BROWSER_PREFIX];
-      document.styleSheets[document.styleSheets.length - 1];
       _ref = document.styleSheets;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         stylesheet = _ref[_i];
         try {
-          if (stylesheet.cssRules != null) {
-            this.STYLESHEET = stylesheet;
-          }
+          this.STYLESHEET = stylesheet;
         } catch (error) {
           console.log("Problem selecting stylesheet: " + error);
         }

@@ -14,12 +14,56 @@ describe("Sauce", ->
       )
       expect(sauce._complete == complete).toBeTruthy()
     )
-    
-    it("should let me pass a complete handler via the convenience method", ->
-      sauce.onComplete((element) ->
-        
-      )
-    )
   )
   
+  describe("handling transformations", ->
+    beforeEach( ->
+      unless document.getElementById("red")?
+        div = document.createElement("div")
+        div.setAttribute("class","square")
+        div.setAttribute("id","red")
+        document.body.appendChild(div)
+    )
+    
+    it("should move to down to 400px", ->
+      div = document.getElementById("red")
+      sauce.recipe((element) ->
+        element.change("y").from(100).to(400).using(Easie.cubicInOut)
+      )
+      sauce.duration(0.5).putOn("red")
+      waitsFor((->
+        div.getAttribute("data-y") == "400"
+      ))
+    )
+    
+    it("should chain by moving to the right 300px after moving up to 200px", ->
+      div = document.getElementById("red")
+      sauce.recipe((element) ->
+        element.change("y").from(400).to(200).using(Easie.bounceOut)
+      ).onComplete( ->
+        sideSauce = new Sauce()
+        sideSauce.recipe( (element) ->
+          element.change("x").to(300).using(Easie.elasticOut)
+        )
+        sideSauce.duration(1).putOn("red")
+      )
+      sauce.duration(0.5).putOn("red")
+      waitsFor((->
+        div.getAttribute("data-y") == "200" and div.getAttribute("data-x") == "300"
+      ))
+    )
+    
+    it("should allow me to manipulate multiple properties simultaneously", ->
+      div = document.getElementById("red")
+      sauce.recipe((element) ->
+        element.change("y").to(150).using(Easie.backOut)
+        element.change("rotate").to(45).using(Easie.backOut)
+        element.change("scale").to(2).using(Easie.backOut)
+      )
+      sauce.duration(0.5).putOn("red")
+      waitsFor(( ->
+        div.getAttribute("data-y") == "150" and div.getAttribute("data-rotate") == "45" and div.getAttribute("data-scale") == "2"
+      ))
+    )
+  )
 )

@@ -18,8 +18,8 @@
   <link rel="stylesheet" href="demo.css?v=2">
   
   <!-- TYPEKIT  -->
-  <script type="text/javascript" src="http://use.typekit.com/kzv1uta.js"></script>
-  <script type="text/javascript">try{Typekit.load();}catch(e){}</script>
+  <!-- <script type="text/javascript" src="http://use.typekit.com/kzv1uta.js"></script>
+  <script type="text/javascript">try{Typekit.load();}catch(e){}</script> -->
 </head>
 
 <body>
@@ -40,12 +40,11 @@
       headlineSauce.recipe(function(element){
         element.change("y").from(-200).using(Easie.bounceOut);
         element.change("scale").from(0.01).using(Easie.circOut);
-      }).onComplete(function(){
+      }).duration(1).delay(1).putOn("sauce").onComplete(function(){
          headlineSauce.recipe(function(element){
-           element.change("y").t(200).using(Easie.bounceOut);
-         }).putOn("sauce");
+           element.change("y").to(-200).using(Easie.backIn);
+        }).duration(1).delay(0).putOn("sauce")
       });
-      headlineSauce.duration(1).delay(1).putOn("sauce");
       
       var taglineSauce = new Sauce();
       taglineSauce.recipe(function(element){

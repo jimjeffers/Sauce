@@ -6,6 +6,11 @@ DISCLAIMER: Software provided as is with no warranty of any type.
 Don't do bad things with this :)
 ###
 
+# Native Class Extensions
+# -------------------------------------------------
+Array::include = (matchedItem) ->
+  this.indexOf(matchedItem) >= 0
+
 # Managed Element:
 # -------------------------------------------------
 # Serves as an abstracted object so that it's simple to store
@@ -13,18 +18,18 @@ Don't do bad things with this :)
 class @ManagedElement
   constructor: (elementID) ->
     @source   = document.getElementById(elementID)
-    @opacity  = 1
-    @x        = 0
-    @y        = 0
-    @z        = 0
-    @scaleX   = 1
-    @scaleY   = 1
-    @scaleZ   = 1
-    @rotate   = 0
-    @rotateX  = 0
-    @rotateY  = 0
-    @rotateZ  = 0
-    @scale    = 1
+    @opacity  = @source.getAttribute("data-opacity")  || 1
+    @x        = @source.getAttribute("data-x")        || 0
+    @y        = @source.getAttribute("data-y")        || 0
+    @z        = @source.getAttribute("data-z")        || 0
+    @scaleX   = @source.getAttribute("data-scaleX")   || 1
+    @scaleY   = @source.getAttribute("data-scaleY")   || 1
+    @scaleZ   = @source.getAttribute("data-scaleZ")   || 1
+    @rotate   = @source.getAttribute("data-rotate")   || 0
+    @rotateX  = @source.getAttribute("data-rotateX")  || 0
+    @rotateY  = @source.getAttribute("data-rotateY")  || 0
+    @rotateZ  = @source.getAttribute("data-rotateZ")  || 0
+    @scale    = @source.getAttribute("data-scale")    || 1
     this
 
 
@@ -44,7 +49,7 @@ class @VelocityEquation
 # in the animation as well as its velocity.
 class @Rule
   constructor: (params={}) ->
-    @equation   = params.equation   || null
+    @equation   = params.equation   || Easie.linearNone
     @startFrame = 0
     @endFrame   = 100
     
@@ -52,9 +57,11 @@ class @Rule
     this
   
   to: (@endPoint) ->
+    @endPoint = parseFloat(@endPoint)
     this
   
   from: (@startPoint) ->
+    @startPoint = parseFloat(@startPoint)
     this
   
   using: (@equation) ->
@@ -99,7 +106,7 @@ class @Rule
     if @startPoint?
       startPoint  = @startPoint
     else 
-      startPoint = @_getElementProp(@element) 
+      startPoint = @_getElementProp(@element)
     
     if @endPoint?
       endPoint  = @endPoint
@@ -138,7 +145,7 @@ class @Ingredient
     @utilizingVelocity  = false
     
   change: (property) ->
-    @rules[property] = new Rule().change(property)
+    @rules[property] = new Rule().change(property) unless @rules[property]?
     @rules[property]
   
   velocity: (property, equationFunction) ->
@@ -208,7 +215,7 @@ class @Ingredient
       css += "top:#{@valueOf("y")}px;" if @valueOf("y")?
     else
       css += "-#{Sauce.BROWSER_PREFIX}-transform: #{transform};" if (transform = @transformRule())?
-      
+    
     css
  
   # Private 
@@ -258,6 +265,7 @@ class @Sauce
     @animations         = {}
     @animationDelay     = 0
     @animationDuration  = 1
+    @animaionIteration  = 1
     @elements           = {}
     
     # The following '_xxx' properties are intended to be private.
@@ -282,13 +290,23 @@ class @Sauce
   delay: (@animationDelay) ->
     this
   
+  iterations: (@animationIteration) ->
+    this
+  
   # Preps the element and generates the keyframes.
   putOn: (id) ->
     element = @_getOrCreateElementFromID(id)
+    
+    # Setup initial rules to maintained tracked properties.
+    if element.source.getAttribute("data-properties")?
+      for property in element.source.getAttribute("data-properties").split(",")
+        @_ingredient.change(property).from(element.source.getAttribute("data-#{property}")).to(element.source.getAttribute("data-#{property}"))
+    
     @recipeFunction(@_ingredient)
     @_createAnimation(@keyframes,id)
     @_applyCSS(0,element)
     @_setAnimationOnElement(element)
+    this
   
   useAgainOn: (id) ->
     element = @_getOrCreateElementFromID(id)
@@ -317,16 +335,17 @@ class @Sauce
       currentFrame++
     @animationCSS = "@-#{Sauce.BROWSER_PREFIX}-keyframes #{@animations[@lastUsedID]} {#{cssFrames}}"
     @_ingredient.utilizingVelocity = false
-    @index = @stylesheet.cssRules.length
-    @stylesheet.insertRule(@animationCSS, @index)
+    @index = @stylesheet.cssRules.length if @stylesheet.cssRules?
+    @stylesheet.insertRule(@animationCSS, @index || 0)
     
   _setAnimationOnElement: (element) ->
     element.source.style[Sauce.CURRENT_PROPS.animationName] = @animations[@lastUsedID]
     element.source.style[Sauce.CURRENT_PROPS.animationDelay] = "#{@animationDelay}s"
     element.source.style[Sauce.CURRENT_PROPS.animationDuration] = "#{@animationDuration}s"
-    element.source.addEventListener(Sauce.CURRENT_PROPS.animationEnd, ( =>
+    element.source.style[Sauce.CURRENT_PROPS.animationIteration] = @animationIteration
+    element.source.addEventListener(Sauce.CURRENT_PROPS.animationEnd, (@_handler = ( =>
       @_completeHandler(element)
-    ), false)
+    )), false)
   
   _getOrCreateElementFromID: (id) ->
     if @elements[id]?
@@ -339,10 +358,10 @@ class @Sauce
   # The underscore denotes that this method should be considered PRIVATE
   # and is only to be called internally. Use onComplete() to bind
   _completeHandler: (element) ->
+    element.source.removeEventListener(Sauce.CURRENT_PROPS.animationEnd,@_handler)
     @_applyCSS(100,element)
-    @_complete(@element) if @_complete?
+    @_complete() if @_complete?
     @_complete = null
-    @delay = 0
   
   _computeKeyframe: (frame) ->
     frame * @interval()
@@ -350,8 +369,15 @@ class @Sauce
   _applyCSS: (frame,element) ->
     @_ingredient.css(@_computeKeyframe(frame))
     if @_ingredient.rules?
+      if element.source.getAttribute("data-properties")?
+        trackedProperties = element.source.getAttribute("data-properties").split(",")
+      else
+        trackedProperties = []
       for property,rule of @_ingredient.rules
-       element.source.style[property] = rule.value
+        element.source.style[property] = rule.value
+        element.source.setAttribute("data-#{property}",rule.value)
+        trackedProperties.push(property) unless trackedProperties.include(property)
+      element.source.setAttribute("data-properties",trackedProperties.join(","))
     if Sauce.TRANSFORMS?
       element.source.style[Sauce.CURRENT_PROPS.transform] = @_ingredient.transformRule()
   
@@ -373,22 +399,26 @@ class @Sauce
       animationName:      'WebkitAnimationName'
       animationDelay:     'WebkitAnimationDelay'
       animationDuration:  'WebkitAnimationDuration'
+      animationIteration: 'WebkitAnimationIterationCount'
       transform:          'WebkitTransform'
     moz:
       animationEnd:       'animationend'
       animationName:      'MozAnimationName'
       animationDelay:     'webkitAnimationDelay'
       animationDuration:  'MozAnimationDuration'
+      animationIteration: 'MozAnimationIterationCount'
       transform:          'MozTransform'
     o:
       animationEnd:       null
       animationName:      null
       animationDuration:  null
+      animationIteration: null
       transform:          'OTransform'
     ms:
       animationEnd:       null
       animationName:      null
       animationDuration:  null
+      animationIteration: null
       transform:          'msTransform'
       
   @getBrowserCapabilities: ->
@@ -419,10 +449,9 @@ class @Sauce
     @CURRENT_PROPS = @BROWSER_PROPS[@BROWSER_PREFIX]
     
     # Get last useable stylesheet:
-    document.styleSheets[document.styleSheets.length-1];
     for stylesheet in document.styleSheets
       try
-        @STYLESHEET = stylesheet if stylesheet.cssRules?
+        @STYLESHEET = stylesheet
       catch error
         console.log "Problem selecting stylesheet: #{error}"
     

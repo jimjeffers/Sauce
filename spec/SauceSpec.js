@@ -5,8 +5,8 @@
     beforeEach(function() {
       return sauce = new Sauce();
     });
-    return describe("initializing a new instance", function() {
-      it("should let me pass in an onComplete handler", function() {
+    describe("initializing a new instance", function() {
+      return it("should let me pass in an onComplete handler", function() {
         var complete;
         complete = function(element, browser, flavors) {
           if (element.className === "hideOnComplete") {
@@ -18,8 +18,58 @@
         });
         return expect(sauce._complete === complete).toBeTruthy();
       });
-      return it("should let me pass a complete handler via the convenience method", function() {
-        return sauce.onComplete(function(element) {});
+    });
+    return describe("handling transformations", function() {
+      beforeEach(function() {
+        var div;
+        if (document.getElementById("red") == null) {
+          div = document.createElement("div");
+          div.setAttribute("class", "square");
+          div.setAttribute("id", "red");
+          return document.body.appendChild(div);
+        }
+      });
+      it("should move to down to 400px", function() {
+        var div;
+        div = document.getElementById("red");
+        sauce.recipe(function(element) {
+          return element.change("y").from(100).to(400).using(Easie.cubicInOut);
+        });
+        sauce.duration(0.5).putOn("red");
+        return waitsFor((function() {
+          return div.getAttribute("data-y") === "400";
+        }));
+      });
+      it("should chain by moving to the right 300px after moving up to 200px", function() {
+        var div;
+        div = document.getElementById("red");
+        sauce.recipe(function(element) {
+          return element.change("y").from(400).to(200).using(Easie.bounceOut);
+        }).onComplete(function() {
+          var sideSauce;
+          sideSauce = new Sauce();
+          sideSauce.recipe(function(element) {
+            return element.change("x").to(300).using(Easie.elasticOut);
+          });
+          return sideSauce.duration(1).putOn("red");
+        });
+        sauce.duration(0.5).putOn("red");
+        return waitsFor((function() {
+          return div.getAttribute("data-y") === "200" && div.getAttribute("data-x") === "300";
+        }));
+      });
+      return it("should allow me to manipulate multiple properties simultaneously", function() {
+        var div;
+        div = document.getElementById("red");
+        sauce.recipe(function(element) {
+          element.change("y").to(150).using(Easie.backOut);
+          element.change("rotate").to(45).using(Easie.backOut);
+          return element.change("scale").to(2).using(Easie.backOut);
+        });
+        sauce.duration(0.5).putOn("red");
+        return waitsFor((function() {
+          return div.getAttribute("data-y") === "150" && div.getAttribute("data-rotate") === "45" && div.getAttribute("data-scale") === "2";
+        }));
       });
     });
   });
