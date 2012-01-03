@@ -257,7 +257,7 @@ class @Sauce
     
   constructor: (params={}) ->
     # Get the browser capabilities if we haven't done so yet.
-    Sauce.getBrowserCapabilities() unless Sauce.BROWSER_PREFIX?
+    Sauce.getBrowserCapabilities(params.force2d) unless Sauce.BROWSER_PREFIX?
     
     @stylesheet         = params.stylesheet     || Sauce.STYLESHEET
     @keyframes          = params.keyframes      || 60
@@ -421,7 +421,7 @@ class @Sauce
       animationIteration: null
       transform:          'msTransform'
       
-  @getBrowserCapabilities: ->
+  @getBrowserCapabilities: (force2d)->
     
     # Browser Prefix:
     # -------------------------------------------------
@@ -455,6 +455,10 @@ class @Sauce
       catch error
         console.log "Problem selecting stylesheet: #{error}"
     
+    if force2d
+      @TRANSFORMS = true
+      return
+    
     # Transform Types:
     # -------------------------------------------------
     # Simple test for transforms or 3D transforms inspired by modernizr.
@@ -468,4 +472,3 @@ class @Sauce
         unless style[property] == undefined
           if name == "transform3d" then @TRANSFORMS3D = true
           if name == "transform" then @TRANSFORMS = true
-    
