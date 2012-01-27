@@ -40,6 +40,22 @@
           return div.getAttribute("data-y") === "400";
         }));
       });
+      it("should allow me to adjust the height and width", function() {
+        var div;
+        div = document.getElementById("red");
+        sauce.recipe(function(element) {
+          element.change("height").from(100).to(400).using(Easie.bounceOut);
+          return element.change("width").from(100).to(500).using(Easie.bounceOut);
+        });
+        sauce.duration(0.5).putOn("red");
+        waitsFor((function() {
+          return div.getAttribute("data-height") === "400" && div.getAttribute("data-width") === "500";
+        }));
+        return runs(function() {
+          expect(div.getAttribute("data-height") === "400").toBeTruthy();
+          return expect(div.getAttribute("data-width") === "500").toBeTruthy();
+        });
+      });
       it("should chain by moving to the right 300px after moving up to 200px", function() {
         var div;
         div = document.getElementById("red");
@@ -54,9 +70,13 @@
           return sideSauce.duration(1).putOn("red");
         });
         sauce.duration(0.5).putOn("red");
-        return waitsFor((function() {
+        waitsFor((function() {
           return div.getAttribute("data-y") === "200" && div.getAttribute("data-x") === "300";
         }));
+        return runs(function() {
+          expect(div.getAttribute("data-y") === "200").toBeTruthy();
+          return expect(div.getAttribute("data-x") === "300").toBeTruthy();
+        });
       });
       return it("should allow me to manipulate multiple properties simultaneously", function() {
         var div;
@@ -67,9 +87,13 @@
           return element.change("scale").to(2).using(Easie.backOut);
         });
         sauce.duration(0.5).putOn("red");
-        return waitsFor((function() {
+        waitsFor((function() {
           return div.getAttribute("data-y") === "150" && div.getAttribute("data-rotate") === "45" && div.getAttribute("data-scale") === "2";
         }));
+        return runs(function() {
+          expect(div.getAttribute("data-y") === "150").toBeTruthy();
+          return expect(div.getAttribute("data-rotate") === "45").toBeTruthy();
+        });
       });
     });
   });

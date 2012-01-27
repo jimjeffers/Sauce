@@ -52,6 +52,7 @@ class @Rule
     @equation   = params.equation   || Easie.linearNone
     @startFrame = 0
     @endFrame   = 100
+    @units      = "px"
     
   change: (@property) ->
     this
@@ -62,6 +63,9 @@ class @Rule
   
   from: (@startPoint) ->
     @startPoint = parseFloat(@startPoint)
+    this
+  
+  withUnits: (@units) ->
     this
   
   using: (@equation) ->
@@ -137,6 +141,7 @@ class @Ingredient
   @PRECISE_SCALE_PROPS    = ["scaleX","scaleY","scaleZ"]
   @PRECISE_ROTATE_PROPS   = ["rotateX","rotateY","rotateZ"]
   @TRANSFORM_PROPS        = "#{@TRANSLATE_PROPS.join(",")},#{[@SCALE_PROP,@ROTATE_PROP].join(",")},#{@PRECISE_SCALE_PROPS.join(",")},#{@PRECISE_ROTATE_PROPS.join(",")}".split(",")
+  @UNIT_PROPS             = ["height","width"]
   
   constructor: ->
     @rules              = {}
@@ -199,12 +204,15 @@ class @Ingredient
     if @rules?
       for property,rule of @rules
         shouldGenerate = true
+        units = ""
         for proprietaryProperty in Ingredient.TRANSFORM_PROPS
           shouldGenerate = false if property == proprietaryProperty
         rule.valueAtFrameForElement(@keyframe,@element)
+        for unitDependentProperty in Ingredient.UNIT_PROPS
+          units = rule.units if property == unitDependentProperty
         if shouldGenerate
-          css += "#{property}: #{rule.value};"
-
+          css += "#{property}: #{rule.value}#{units};"
+    
     # If no transforms were available we only support
     # animating the top and left properties of the object.
     # But to be honest.. it's doubtful CSS Animation will

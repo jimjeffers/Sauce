@@ -36,6 +36,23 @@ describe("Sauce", ->
       ))
     )
     
+    it("should allow me to adjust the height and width", ->
+      div = document.getElementById("red")
+      sauce.recipe((element) ->
+        element.change("height").from(100).to(400).using(Easie.bounceOut)
+        element.change("width").from(100).to(500).using(Easie.bounceOut)
+      )
+      sauce.duration(0.5).putOn("red")
+      waitsFor((->
+        div.getAttribute("data-height") == "400" and div.getAttribute("data-width") == "500"
+      ))
+      
+      runs( ->
+        expect(div.getAttribute("data-height") == "400").toBeTruthy()
+        expect(div.getAttribute("data-width") == "500").toBeTruthy()
+      )
+    )
+    
     it("should chain by moving to the right 300px after moving up to 200px", ->
       div = document.getElementById("red")
       sauce.recipe((element) ->
@@ -51,6 +68,11 @@ describe("Sauce", ->
       waitsFor((->
         div.getAttribute("data-y") == "200" and div.getAttribute("data-x") == "300"
       ))
+      
+      runs( ->
+        expect(div.getAttribute("data-y") == "200").toBeTruthy()
+        expect(div.getAttribute("data-x") == "300").toBeTruthy()
+      )
     )
     
     it("should allow me to manipulate multiple properties simultaneously", ->
@@ -64,6 +86,11 @@ describe("Sauce", ->
       waitsFor(( ->
         div.getAttribute("data-y") == "150" and div.getAttribute("data-rotate") == "45" and div.getAttribute("data-scale") == "2"
       ))
+      
+      runs( ->
+        expect(div.getAttribute("data-y") == "150").toBeTruthy()
+        expect(div.getAttribute("data-rotate") == "45").toBeTruthy()
+      )
     )
   )
 )

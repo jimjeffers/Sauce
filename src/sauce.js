@@ -1,20 +1,16 @@
-
-/*
-Sauce.coffee (https://github.com/jimjeffers/Sauce)
-Project created by J. Jeffers
-
-DISCLAIMER: Software provided as is with no warranty of any type. 
-Don't do bad things with this :)
-*/
-
 (function() {
-
+  /*
+  Sauce.coffee (https://github.com/jimjeffers/Sauce)
+  Project created by J. Jeffers
+  
+  DISCLAIMER: Software provided as is with no warranty of any type. 
+  Don't do bad things with this :)
+  */
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
   Array.prototype.include = function(matchedItem) {
     return this.indexOf(matchedItem) >= 0;
   };
-
   this.ManagedElement = (function() {
-
     function ManagedElement(elementID) {
       this.source = document.getElementById(elementID);
       this.opacity = this.source.getAttribute("data-opacity") || 1;
@@ -31,91 +27,78 @@ Don't do bad things with this :)
       this.scale = this.source.getAttribute("data-scale") || 1;
       this;
     }
-
     return ManagedElement;
-
   })();
-
   this.VelocityEquation = (function() {
-
     function VelocityEquation(rule, equation) {
       this.rule = rule;
       this.equation = equation;
       this;
     }
-
     VelocityEquation.prototype.calculateForFrame = function(keyframe) {
       var x;
       x = this.equation(this.rule.velocityAtKeyFrame(keyframe));
       return x;
     };
-
     return VelocityEquation;
-
   })();
-
   this.Rule = (function() {
-
     function Rule(params) {
-      if (params == null) params = {};
+      if (params == null) {
+        params = {};
+      }
       this.equation = params.equation || Easie.linearNone;
       this.startFrame = 0;
       this.endFrame = 100;
+      this.units = "px";
     }
-
     Rule.prototype.change = function(property) {
       this.property = property;
       return this;
     };
-
     Rule.prototype.to = function(endPoint) {
       this.endPoint = endPoint;
       this.endPoint = parseFloat(this.endPoint);
       return this;
     };
-
     Rule.prototype.from = function(startPoint) {
       this.startPoint = startPoint;
       this.startPoint = parseFloat(this.startPoint);
       return this;
     };
-
+    Rule.prototype.withUnits = function(units) {
+      this.units = units;
+      return this;
+    };
     Rule.prototype.using = function(equation) {
       this.equation = equation;
       return this;
     };
-
     Rule.prototype.withAmplitudeOf = function(amplitude) {
       this.amplitude = amplitude;
       return this;
     };
-
     Rule.prototype.withPeriodOf = function(period) {
       this.period = period;
       return this;
     };
-
     Rule.prototype.startingOnFrame = function(startFrame) {
       this.startFrame = startFrame;
       return this;
     };
-
     Rule.prototype.endingOnFrame = function(endFrame) {
       this.endFrame = endFrame;
       return this;
     };
-
     Rule.prototype.velocityAtKeyFrame = function(keyframe) {
       if (keyframe === this.keyframe && keyframe !== 0 && keyframe !== 100) {
         return this.velocity;
       }
       return 0;
     };
-
     Rule.prototype.isVelocityRule = function() {
       return this.equation instanceof VelocityEquation;
     };
-
     Rule.prototype.valueAtFrameForElement = function(keyframe, element) {
       this.element = element;
       if (this.keyframe !== keyframe) {
@@ -130,7 +113,6 @@ Don't do bad things with this :)
       }
       return this.value;
     };
-
     Rule.prototype._calculateForFrame = function(keyframe) {
       var endPoint, startPoint, value;
       if (this.startPoint != null) {
@@ -155,54 +137,40 @@ Don't do bad things with this :)
       }
       return value;
     };
-
     Rule.prototype._getElementProp = function(element) {
       return element[this.property];
     };
-
     return Rule;
-
   })();
-
   this.Ingredient = (function() {
-
     Ingredient.ROTATE_PROP = "rotate";
-
     Ingredient.SCALE_PROP = "scale";
-
     Ingredient.TRANSLATE_PROPS = ["x", "y", "z"];
-
     Ingredient.PRECISE_SCALE_PROPS = ["scaleX", "scaleY", "scaleZ"];
-
     Ingredient.PRECISE_ROTATE_PROPS = ["rotateX", "rotateY", "rotateZ"];
-
     Ingredient.TRANSFORM_PROPS = ("" + (Ingredient.TRANSLATE_PROPS.join(",")) + "," + ([Ingredient.SCALE_PROP, Ingredient.ROTATE_PROP].join(",")) + "," + (Ingredient.PRECISE_SCALE_PROPS.join(",")) + "," + (Ingredient.PRECISE_ROTATE_PROPS.join(","))).split(",");
-
+    Ingredient.UNIT_PROPS = ["height", "width"];
     function Ingredient() {
       this.rules = {};
       this.element = null;
       this.keyframe = 0;
       this.utilizingVelocity = false;
     }
-
     Ingredient.prototype.change = function(property) {
       if (this.rules[property] == null) {
         this.rules[property] = new Rule().change(property);
       }
       return this.rules[property];
     };
-
     Ingredient.prototype.velocity = function(property, equationFunction) {
       return new VelocityEquation(this.rules[property], equationFunction);
     };
-
     Ingredient.prototype.valueOf = function(property) {
       if (((property = this.rules[property]) != null) && !(property.isVelocityRule() && !this.utilizingVelocity)) {
         return property.valueAtFrameForElement(this.keyframe, this.element);
       }
       return null;
     };
-
     Ingredient.prototype.transformRule = function() {
       var transform;
       if (this._needsTransform() && (this.element != null) && (this.keyframe != null)) {
@@ -235,9 +203,8 @@ Don't do bad things with this :)
       }
       return transform || false;
     };
-
     Ingredient.prototype.css = function(keyframe) {
-      var css, property, proprietaryProperty, rule, shouldGenerate, transform, _i, _len, _ref, _ref2;
+      var css, property, proprietaryProperty, rule, shouldGenerate, transform, unitDependentProperty, units, _i, _j, _len, _len2, _ref, _ref2, _ref3;
       this.keyframe = keyframe;
       css = "";
       if (this.rules != null) {
@@ -245,20 +212,34 @@ Don't do bad things with this :)
         for (property in _ref) {
           rule = _ref[property];
           shouldGenerate = true;
+          units = "";
           _ref2 = Ingredient.TRANSFORM_PROPS;
           for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
             proprietaryProperty = _ref2[_i];
-            if (property === proprietaryProperty) shouldGenerate = false;
+            if (property === proprietaryProperty) {
+              shouldGenerate = false;
+            }
           }
           rule.valueAtFrameForElement(this.keyframe, this.element);
-          if (shouldGenerate) css += "" + property + ": " + rule.value + ";";
+          _ref3 = Ingredient.UNIT_PROPS;
+          for (_j = 0, _len2 = _ref3.length; _j < _len2; _j++) {
+            unitDependentProperty = _ref3[_j];
+            if (property === unitDependentProperty) {
+              units = rule.units;
+            }
+          }
+          if (shouldGenerate) {
+            css += "" + property + ": " + rule.value + units + ";";
+          }
         }
       }
       if (!(Sauce.TRANSFORMS != null)) {
         if (this.valueOf("x") != null) {
           css += "left:" + (this.valueOf("x")) + "px;";
         }
-        if (this.valueOf("y") != null) css += "top:" + (this.valueOf("y")) + "px;";
+        if (this.valueOf("y") != null) {
+          css += "top:" + (this.valueOf("y")) + "px;";
+        }
       } else {
         if ((transform = this.transformRule()) != null) {
           css += "-" + Sauce.BROWSER_PREFIX + "-transform: " + transform + ";";
@@ -266,54 +247,45 @@ Don't do bad things with this :)
       }
       return css;
     };
-
     Ingredient.prototype._needsTransform = function() {
       return this._checkProps(["x", "y", "z", "scaleX", "scaleY", "scaleZ", "scale", "rotate"]);
     };
-
     Ingredient.prototype._needsTranslate = function() {
       return this._checkProps(Ingredient.TRANSLATE_PROPS);
     };
-
     Ingredient.prototype._needsPrecisionScale = function() {
       return this._checkProps(Ingredient.PRECISE_SCALE_PROPS);
     };
-
     Ingredient.prototype._needsUniformScale = function() {
       return this.rules[Ingredient.SCALE_PROP] != null;
     };
-
     Ingredient.prototype._needsRotateIn3D = function() {
       return this._checkProps(Ingredient.PRECISE_ROTATE_PROPS);
     };
-
     Ingredient.prototype._needsRotate = function() {
       return this.rules[Ingredient.ROTATE_PROP] != null;
     };
-
     Ingredient.prototype._checkProps = function(properties) {
       var property, _i, _len;
       for (_i = 0, _len = properties.length; _i < _len; _i++) {
         property = properties[_i];
-        if (this.rules[property] != null) return true;
+        if (this.rules[property] != null) {
+          return true;
+        }
       }
       return false;
     };
-
     return Ingredient;
-
   })();
-
   this.Sauce = (function() {
-
     Sauce._ANIMATION_ID = 0;
-
     Sauce.animationID = function() {
       return this._ANIMATION_ID += 1;
     };
-
     function Sauce(params) {
-      if (params == null) params = {};
+      if (params == null) {
+        params = {};
+      }
       if (Sauce.BROWSER_PREFIX == null) {
         Sauce.getBrowserCapabilities(params.force2d);
       }
@@ -328,36 +300,29 @@ Don't do bad things with this :)
       this._ingredient = new Ingredient();
       this._complete = params.complete || null;
     }
-
     Sauce.prototype.recipe = function(recipeFunction) {
       this.recipeFunction = recipeFunction;
       return this;
     };
-
     Sauce.prototype.interval = function() {
       return 100 / this.keyframes;
     };
-
     Sauce.prototype.onComplete = function(complete) {
       this._complete = complete;
       return this;
     };
-
     Sauce.prototype.duration = function(animationDuration) {
       this.animationDuration = animationDuration;
       return this;
     };
-
     Sauce.prototype.delay = function(animationDelay) {
       this.animationDelay = animationDelay;
       return this;
     };
-
     Sauce.prototype.iterations = function(animationIteration) {
       this.animationIteration = animationIteration;
       return this;
     };
-
     Sauce.prototype.putOn = function(id) {
       var element, property, _i, _len, _ref;
       element = this._getOrCreateElementFromID(id);
@@ -374,14 +339,12 @@ Don't do bad things with this :)
       this._setAnimationOnElement(element);
       return this;
     };
-
     Sauce.prototype.useAgainOn = function(id) {
       var element;
       element = this._getOrCreateElementFromID(id);
       this._setAnimationOnElement(element);
       return this;
     };
-
     Sauce.prototype._createAnimation = function(keyframes, id) {
       var cssFrames, currentFrame, frameLabel, keyframe;
       this.keyframes = keyframes;
@@ -409,18 +372,15 @@ Don't do bad things with this :)
       }
       return this.stylesheet.insertRule(this.animationCSS, this.index || 0);
     };
-
     Sauce.prototype._setAnimationOnElement = function(element) {
-      var _this = this;
       element.source.style[Sauce.CURRENT_PROPS.animationName] = this.animations[this.lastUsedID];
       element.source.style[Sauce.CURRENT_PROPS.animationDelay] = "" + this.animationDelay + "s";
       element.source.style[Sauce.CURRENT_PROPS.animationDuration] = "" + this.animationDuration + "s";
       element.source.style[Sauce.CURRENT_PROPS.animationIteration] = this.animationIteration;
-      return element.source.addEventListener(Sauce.CURRENT_PROPS.animationEnd, (this._handler = (function() {
-        return _this._completeHandler(element);
-      })), false);
+      return element.source.addEventListener(Sauce.CURRENT_PROPS.animationEnd, (this._handler = (__bind(function() {
+        return this._completeHandler(element);
+      }, this))), false);
     };
-
     Sauce.prototype._getOrCreateElementFromID = function(id) {
       var element;
       if (this.elements[id] != null) {
@@ -431,18 +391,17 @@ Don't do bad things with this :)
       }
       return element;
     };
-
     Sauce.prototype._completeHandler = function(element) {
       element.source.removeEventListener(Sauce.CURRENT_PROPS.animationEnd, this._handler);
       this._applyCSS(100, element);
-      if (this._complete != null) this._complete();
+      if (this._complete != null) {
+        this._complete();
+      }
       return this._complete = null;
     };
-
     Sauce.prototype._computeKeyframe = function(frame) {
       return frame * this.interval();
     };
-
     Sauce.prototype._applyCSS = function(frame, element) {
       var property, rule, trackedProperties, _ref;
       this._ingredient.css(this._computeKeyframe(frame));
@@ -467,17 +426,11 @@ Don't do bad things with this :)
         return element.source.style[Sauce.CURRENT_PROPS.transform] = this._ingredient.transformRule();
       }
     };
-
     Sauce.BROWSER_PREFIX = null;
-
     Sauce.TRANSFORMS3D = null;
-
     Sauce.TRANSFORMS = null;
-
     Sauce.CURRENT_PROPS = null;
-
     Sauce.STYLESHEET = null;
-
     Sauce.BROWSER_PROPS = {
       webkit: {
         animationEnd: 'webkitAnimationEnd',
@@ -510,7 +463,6 @@ Don't do bad things with this :)
         transform: 'msTransform'
       }
     };
-
     Sauce.getBrowserCapabilities = function(force2d) {
       var features, name, options, prefix, prefixes, properties, property, style, stylesheet, userAgent, _i, _len, _ref, _results;
       prefixes = {
@@ -565,25 +517,13 @@ Don't do bad things with this :)
           _results2 = [];
           for (_j = 0, _len2 = properties.length; _j < _len2; _j++) {
             property = properties[_j];
-            if (style[property] !== void 0) {
-              if (name === "transform3d") this.TRANSFORMS3D = true;
-              if (name === "transform") {
-                _results2.push(this.TRANSFORMS = true);
-              } else {
-                _results2.push(void 0);
-              }
-            } else {
-              _results2.push(void 0);
-            }
+            _results2.push(style[property] !== void 0 ? (name === "transform3d" ? this.TRANSFORMS3D = true : void 0, name === "transform" ? this.TRANSFORMS = true : void 0) : void 0);
           }
           return _results2;
         }).call(this));
       }
       return _results;
     };
-
     return Sauce;
-
   })();
-
 }).call(this);
