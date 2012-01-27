@@ -203,13 +203,14 @@ class @Ingredient
     # Handle explicit CSS:
     if @rules?
       for property,rule of @rules
-        shouldGenerate = true
-        units = ""
-        for proprietaryProperty in Ingredient.TRANSFORM_PROPS
-          shouldGenerate = false if property == proprietaryProperty
+        shouldGenerate  = true
+        units           = ""
+        
+        shouldGenerate  = false if Ingredient.TRANSFORM_PROPS.include(property)
+        units           = rule.units if Ingredient.UNIT_PROPS.include(property)
+        
         rule.valueAtFrameForElement(@keyframe,@element)
-        for unitDependentProperty in Ingredient.UNIT_PROPS
-          units = rule.units if property == unitDependentProperty
+        
         if shouldGenerate
           css += "#{property}: #{rule.value}#{units};"
     
