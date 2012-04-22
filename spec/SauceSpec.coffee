@@ -92,5 +92,17 @@ describe("Sauce", ->
         expect(div.getAttribute("data-rotate") == "45").toBeTruthy()
       )
     )
+    
+    it("should allow me to apply a sauce via class level convenience methods", ->
+      div = document.getElementById("red")
+      Sauce.applyRecipe( (element) -> element.change("y").to(-1000).using(Easie.cubicIn) ).withDuration(2).andDelay(1).on("red")
+      waitsFor(( ->
+        div.getAttribute("data-y") == "-1000"
+      ))
+      runs( ->
+        expect(div.getAttribute("data-y") == "-1000").toBeTruthy()
+      )
+    )
+    
   )
 )

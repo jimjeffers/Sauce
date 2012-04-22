@@ -1,4 +1,5 @@
 (function() {
+
   describe("Sauce", function() {
     var sauce;
     sauce = null;
@@ -78,7 +79,7 @@
           return expect(div.getAttribute("data-x") === "300").toBeTruthy();
         });
       });
-      return it("should allow me to manipulate multiple properties simultaneously", function() {
+      it("should allow me to manipulate multiple properties simultaneously", function() {
         var div;
         div = document.getElementById("red");
         sauce.recipe(function(element) {
@@ -95,6 +96,20 @@
           return expect(div.getAttribute("data-rotate") === "45").toBeTruthy();
         });
       });
+      return it("should allow me to apply a sauce via class level convenience methods", function() {
+        var div;
+        div = document.getElementById("red");
+        Sauce.applyRecipe(function(element) {
+          return element.change("y").to(-1000).using(Easie.cubicIn);
+        }).withDuration(2).andDelay(1).on("red");
+        waitsFor((function() {
+          return div.getAttribute("data-y") === "-1000";
+        }));
+        return runs(function() {
+          return expect(div.getAttribute("data-y") === "-1000").toBeTruthy();
+        });
+      });
     });
   });
+
 }).call(this);

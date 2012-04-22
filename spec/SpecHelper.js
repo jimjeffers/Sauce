@@ -1,4 +1,5 @@
 (function() {
+
   beforeEach(function() {
     return this.addMatchers({
       toHaveElement: function(element) {
@@ -13,4 +14,5 @@
       }
     });
   });
+
 }).call(this);

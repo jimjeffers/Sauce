@@ -263,7 +263,10 @@ class @Sauce
   # Increments the private Animation ID constant.
   @animationID: ->
     @_ANIMATION_ID += 1
-    
+  
+  @applyRecipe: (recipe) ->
+    new Sauce(recipe: recipe)
+  
   constructor: (params={}) ->
     # Get the browser capabilities if we haven't done so yet.
     Sauce.getBrowserCapabilities(params.force2d) unless Sauce.BROWSER_PREFIX?
@@ -316,6 +319,12 @@ class @Sauce
     @_applyCSS(0,element)
     @_setAnimationOnElement(element)
     this
+  
+  # Convenience methods for more verbose API syntax.
+  on: (id) -> @putOn(id)
+  withDuration: (duration) -> @duration(duration)
+  andDelay: (delay) -> @delay(delay)
+  times: (iterations) -> @iterations(iterations)
   
   useAgainOn: (id) ->
     element = @_getOrCreateElementFromID(id)
