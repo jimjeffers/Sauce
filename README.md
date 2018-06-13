@@ -74,4 +74,4 @@ hotSauce.onComplete((ingredient) ->
 
 # Test Suite
 
-A test suite is now provided using [Jasmine.js](http://pivotal.github.com/jasmine/)
+A test suite is now provided using [Jasmine.js](https://jasmine.github.io/)
